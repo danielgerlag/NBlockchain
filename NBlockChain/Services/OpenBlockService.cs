@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
@@ -38,10 +38,11 @@ namespace NBlockChain.Services
         }
 
         public void CloseBlock(DateTime startTime, DateTime endTime)
-        {
+        {            
             _resetEvent.WaitOne();
             try
             {
+                var seletedEvents = _pendingEvents.Where(x => x.Value.Timestamp >= startTime.Ticks && x.Value.Timestamp < endTime.Ticks);
                 
             }
             finally

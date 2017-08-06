@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.12
+VisualStudioVersion = 15.0.26430.15
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBlockChain", "NBlockChain\NBlockChain.csproj", "{9F76726A-5A74-4A9B-BB35-465F9137CC57}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NBlockChain", "NBlockChain\NBlockChain.csproj", "{9F76726A-5A74-4A9B-BB35-465F9137CC57}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DigitalCurrency", "Samples\DigitalCurrency\DigitalCurrency.csproj", "{804876E4-8D7A-4C18-B772-B716849880DA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DigitalCurrency", "Samples\DigitalCurrency\DigitalCurrency.csproj", "{804876E4-8D7A-4C18-B772-B716849880DA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{F160E2A1-7F39-4223-9D88-DE86EA01E876}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBlockChain.Tests", "NBlockChain.Tests\NBlockChain.Tests.csproj", "{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,6 +25,10 @@ Global
 		{804876E4-8D7A-4C18-B772-B716849880DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{804876E4-8D7A-4C18-B772-B716849880DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{804876E4-8D7A-4C18-B772-B716849880DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
