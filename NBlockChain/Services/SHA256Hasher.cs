@@ -12,8 +12,7 @@ namespace NBlockChain.Services
 
         public byte[] ComputeHash(byte[] input)
         {
-            return input;
-            //return _algorithm.ComputeHash(input);
+            return _algorithm.ComputeHash(input);
         }
 
         public void Dispose()

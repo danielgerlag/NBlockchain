@@ -28,7 +28,7 @@ namespace NBlockChain.Services
             var sortedSet = new SortedSet<byte[]>(nodes, _byteArrayComparer);
             var next = new ConcurrentBag<MerkleNode>();
 
-            Parallel.For(0, sortedSet.Count, new ParallelOptions() { MaxDegreeOfParallelism = 1 }, i =>
+            Parallel.For(0, sortedSet.Count, i =>
             {
                 if ((i % 2) == 0)
                 {
@@ -46,10 +46,10 @@ namespace NBlockChain.Services
                 }
             });
 
-            return BuildTree(new HashSet<MerkleNode>(next));
+            return BuildBranches(new HashSet<MerkleNode>(next));
         }
 
-        private MerkleNode BuildTree(ICollection<MerkleNode> nodes)
+        private MerkleNode BuildBranches(ICollection<MerkleNode> nodes)
         {
             ICollection<MerkleNode> current = new HashSet<MerkleNode>(nodes);
 
@@ -58,7 +58,7 @@ namespace NBlockChain.Services
                 var sortedSet = new SortedSet<MerkleNode>(current, _merkleNodeComparer);
                 var next = new ConcurrentBag<MerkleNode>();
 
-                Parallel.For(0, sortedSet.Count, new ParallelOptions() { MaxDegreeOfParallelism = 1 }, i =>
+                Parallel.For(0, sortedSet.Count, i =>
                 {
                     if ((i % 2) == 0)
                     {

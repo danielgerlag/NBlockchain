@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using Xunit;
 using FluentAssertions;
+using FakeItEasy;
 
 namespace NBlockChain.Tests.Services
 {
@@ -15,13 +16,17 @@ namespace NBlockChain.Tests.Services
 
         public MerkleTreeBuilderTests()
         {
-            _hasher = new SHA256Hasher();
+            _hasher = A.Fake<IHasher>();
             _subject = new MerkleTreeBuilder(_hasher);
         }
 
+        
         [Fact]
-        public void Test1()
+        public void should_compute_merkle_root()
         {
+            A.CallTo(() => _hasher.ComputeHash(A<byte[]>.Ignored))
+                .ReturnsLazily<byte[], byte[]>(input => input);
+
             var source = new List<byte[]>();
             source.Add(new byte[] { 0x3 });
             source.Add(new byte[] { 0x1 });
@@ -34,6 +39,7 @@ namespace NBlockChain.Tests.Services
             var rootNode = _subject.BuildTree(source);
 
             rootNode.Should().NotBeNull();
+            rootNode.Value.Should().BeEquivalentTo(new byte[] { 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x7 });
         }
     }
 }
