@@ -1,6 +1,7 @@
 ﻿using NBlockChain.Interfaces;
 using NBlockChain.Models;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,18 +13,22 @@ namespace NBlockChain.Services
     {
 
         private readonly IHasher _hasher;
+        private readonly IComparer<byte[]> _byteArrayComparer;
+        private readonly IComparer<MerkleNode> _merkleNodeComparer;
 
         public MerkleTreeBuilder(IHasher hasher)
         {
             _hasher = hasher;
+            _byteArrayComparer = new ByteArrayComparer();
+            _merkleNodeComparer = new MerkelNodeComparer();
         }
 
         public MerkleNode BuildTree(ICollection<byte[]> nodes)
         {
-            var sortedSet = new SortedSet<byte[]>(nodes);
+            var sortedSet = new SortedSet<byte[]>(nodes, _byteArrayComparer);
             var next = new ConcurrentBag<MerkleNode>();
 
-            Parallel.For(0, sortedSet.Count - 2, i =>
+            Parallel.For(0, sortedSet.Count, new ParallelOptions() { MaxDegreeOfParallelism = 1 }, i =>
             {
                 if ((i % 2) == 0)
                 {
@@ -34,8 +39,8 @@ namespace NBlockChain.Services
                     var node = new MerkleNode()
                     {
                         Value = _hasher.ComputeHash(combined.ToArray()),
-                        Left = new MerkleNode() { Value = left },
-                        Right = new MerkleNode() { Value = right }
+                        Left = new MerkleNode() { Value = _hasher.ComputeHash(left) },
+                        Right = new MerkleNode() { Value = _hasher.ComputeHash(right) }
                     };
                     next.Add(node);
                 }
@@ -50,10 +55,10 @@ namespace NBlockChain.Services
 
             while (current.Count > 1)
             {
-                var sortedSet = new SortedSet<MerkleNode>(current);
+                var sortedSet = new SortedSet<MerkleNode>(current, _merkleNodeComparer);
                 var next = new ConcurrentBag<MerkleNode>();
 
-                Parallel.For(0, sortedSet.Count - 2, i =>
+                Parallel.For(0, sortedSet.Count, new ParallelOptions() { MaxDegreeOfParallelism = 1 }, i =>
                 {
                     if ((i % 2) == 0)
                     {

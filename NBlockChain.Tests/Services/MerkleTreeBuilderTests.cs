@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
+using FluentAssertions;
 
 namespace NBlockChain.Tests.Services
 {
@@ -21,6 +22,18 @@ namespace NBlockChain.Tests.Services
         [Fact]
         public void Test1()
         {
+            var source = new List<byte[]>();
+            source.Add(new byte[] { 0x3 });
+            source.Add(new byte[] { 0x1 });
+            source.Add(new byte[] { 0x2 });            
+            source.Add(new byte[] { 0x4 });
+            source.Add(new byte[] { 0x5 });
+            source.Add(new byte[] { 0x6 });
+            source.Add(new byte[] { 0x7 });
+
+            var rootNode = _subject.BuildTree(source);
+
+            rootNode.Should().NotBeNull();
         }
     }
 }
