@@ -4,18 +4,11 @@ using System.Text;
 
 namespace NBlockChain.Models
 {
-    public class Block<TEvent>
-        where TEvent : AbstractEvent
+    public class Block<T>
+        where T : AbstractTransaction
     {
-        public BlockHeader Header { get; set; }
-        public BlockStatus Status { get; set; }
-        public ICollection<TEvent> Events { get; set; } = new HashSet<TEvent>();
-    }
-
-    public enum BlockStatus
-    {
-        Open = 0,
-        Closed = 1,
-        Verified = 2
-    }
+        public BlockHeader Header { get; set; }        
+        public ICollection<T> Transactions { get; set; } = new HashSet<T>();
+        public MerkleNode MerkleRootNode { get; set; }
+    }    
 }

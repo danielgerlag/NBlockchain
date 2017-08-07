@@ -36,7 +36,7 @@ namespace NBlockChain.Tests.Services
             source.Add(new byte[] { 0x6 });
             source.Add(new byte[] { 0x7 });
 
-            var rootNode = _subject.BuildTree(source);
+            var rootNode = _subject.BuildTree(source).Result;
 
             rootNode.Should().NotBeNull();
             rootNode.Value.Should().BeEquivalentTo(new byte[] { 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x7 });

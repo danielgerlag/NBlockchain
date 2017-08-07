@@ -9,7 +9,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DigitalCurrency", "Samples\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{F160E2A1-7F39-4223-9D88-DE86EA01E876}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NBlockChain.Tests", "NBlockChain.Tests\NBlockChain.Tests.csproj", "{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NBlockChain.Tests", "NBlockChain.Tests\NBlockChain.Tests.csproj", "{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A7AAFCC0-A390-4A51-9CE5-3C7ABCE95A9A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScratchPad", "ScratchPad\ScratchPad.csproj", "{432F4777-5194-4628-A77A-101728E6D427}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,11 +33,17 @@ Global
 		{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{87CAF87F-9194-4722-BB2D-4ACD40F9BC32}.Release|Any CPU.Build.0 = Release|Any CPU
+		{432F4777-5194-4628-A77A-101728E6D427}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{432F4777-5194-4628-A77A-101728E6D427}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{432F4777-5194-4628-A77A-101728E6D427}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{432F4777-5194-4628-A77A-101728E6D427}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{804876E4-8D7A-4C18-B772-B716849880DA} = {F160E2A1-7F39-4223-9D88-DE86EA01E876}
+		{87CAF87F-9194-4722-BB2D-4ACD40F9BC32} = {A7AAFCC0-A390-4A51-9CE5-3C7ABCE95A9A}
+		{432F4777-5194-4628-A77A-101728E6D427} = {A7AAFCC0-A390-4A51-9CE5-3C7ABCE95A9A}
 	EndGlobalSection
 EndGlobal

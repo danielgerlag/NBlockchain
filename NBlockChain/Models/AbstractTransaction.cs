@@ -4,9 +4,11 @@ using System.Text;
 
 namespace NBlockChain.Models
 {
-    public abstract class AbstractEvent
+    public abstract class AbstractTransaction
     {
         public long Timestamp { get; set; }
+
+        public uint Version { get; set; }
 
         public abstract byte[] GetRawData();
 

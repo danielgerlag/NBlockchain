@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace NBlockChain.Services
 {
-    public class MerkleTreeBuilder
+    public class MerkleTreeBuilder : IMerkleTreeBuilder
     {
 
         private readonly IHasher _hasher;
@@ -23,7 +23,7 @@ namespace NBlockChain.Services
             _merkleNodeComparer = new MerkelNodeComparer();
         }
 
-        public MerkleNode BuildTree(ICollection<byte[]> nodes)
+        public async Task<MerkleNode> BuildTree(ICollection<byte[]> nodes)
         {
             var sortedSet = new SortedSet<byte[]>(nodes, _byteArrayComparer);
             var next = new ConcurrentBag<MerkleNode>();
@@ -35,7 +35,7 @@ namespace NBlockChain.Services
                     var left = sortedSet.ElementAt(i);
                     var right = sortedSet.ElementAt(Math.Min(i + 1, sortedSet.Count - 1));
                     var combined = left.Concat(right);
-                                        
+
                     var node = new MerkleNode()
                     {
                         Value = _hasher.ComputeHash(combined.ToArray()),
