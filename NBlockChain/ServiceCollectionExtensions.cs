@@ -20,6 +20,7 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             services.AddTransient<IHasher, SHA256Hasher>();
+            services.AddTransient<ISignatureService, DefaultSignatureService>();
             services.AddTransient<IMerkleTreeBuilder, MerkleTreeBuilder>();
             services.AddTransient<IBlockValidator<TTransaction>, ProofOfWorkBlockValidator<TTransaction>>();
 

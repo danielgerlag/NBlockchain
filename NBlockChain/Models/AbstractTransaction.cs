@@ -10,6 +10,10 @@ namespace NBlockChain.Models
 
         public uint Version { get; set; }
 
+        public byte[] Originator { get; set; }
+
+        public byte[] Signature { get; set; }
+
         public abstract byte[] GetRawData();
 
     }
