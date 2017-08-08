@@ -61,8 +61,12 @@ namespace NBlockChain.Services
                 _lock.WaitOne();
                 try
                 {
-                    header.BlockID = hash;
-                    header.Nonce = nonce;
+                    if (header.Status == BlockStatus.Closed)
+                    {
+                        header.BlockID = hash;
+                        header.Nonce = nonce;
+                        header.Status = BlockStatus.Verified;
+                    }
                 }
                 finally
                 {
@@ -87,12 +91,12 @@ namespace NBlockChain.Services
 
             foreach (var b in hash)
             {
-                var byteCounter = Math.Max(255, Math.Min(counter, 255));
+                var byteCounter = Math.Min(counter, 255);
 
                 if (b > (255 - byteCounter))
                     return false;
 
-                counter -= Math.Min(255, difficulty);
+                counter -= byteCounter;
 
                 if (counter <= 0)
                     break;

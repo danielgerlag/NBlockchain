@@ -16,7 +16,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 BlockTime = TimeSpan.FromMinutes(1),
                 TransactionVersion = 1,
-                Difficulty = 260
+                Difficulty = 250
             });
 
             services.AddTransient<IHasher, SHA256Hasher>();
