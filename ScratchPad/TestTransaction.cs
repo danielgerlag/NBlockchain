@@ -5,14 +5,9 @@ using System.Text;
 
 namespace ScratchPad
 {
-    public class TestTransaction : AbstractTransaction
+    [TransactionType("test-v1")]
+    public class TestTransaction
     {
-
         public string Message { get; set; }
-
-        public override byte[] GetRawData()
-        {
-            return ASCIIEncoding.ASCII.GetBytes(Message);
-        }
     }
 }

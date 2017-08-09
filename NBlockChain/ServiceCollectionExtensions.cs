@@ -9,8 +9,7 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class ServiceCollectionExtensions
     {
-        public static void AddBlockchain<TTransaction>(this IServiceCollection services)
-            where TTransaction : AbstractTransaction
+        public static void AddBlockchain(this IServiceCollection services)
         {
             services.AddSingleton<INetworkParameters>(new StaticNetworkParameters()
             {
@@ -20,11 +19,12 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             services.AddTransient<IHasher, SHA256Hasher>();
+            services.AddTransient<ITransactionKeyResolver, TransactionKeyResolver>();
             services.AddTransient<ISignatureService, DefaultSignatureService>();
             services.AddTransient<IMerkleTreeBuilder, MerkleTreeBuilder>();
-            services.AddTransient<IBlockValidator<TTransaction>, ProofOfWorkBlockValidator<TTransaction>>();
+            services.AddTransient<IBlockValidator, ProofOfWorkBlockValidator>();
 
-            services.AddSingleton<IBlockBuilder<TTransaction>, BlockBuilder<TTransaction>>();
+            services.AddSingleton<IBlockBuilder, BlockBuilder>();
 
         }
     }

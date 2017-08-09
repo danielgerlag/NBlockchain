@@ -4,11 +4,10 @@ using System.Text;
 
 namespace NBlockChain.Models
 {
-    public class Block<T>
-        where T : AbstractTransaction
+    public class Block
     {
         public BlockHeader Header { get; set; }        
-        public ICollection<T> Transactions { get; set; } = new HashSet<T>();
+        public ICollection<TransactionEnvelope> Transactions { get; set; } = new HashSet<TransactionEnvelope>();
         public MerkleNode MerkleRootNode { get; set; }
     }    
 }

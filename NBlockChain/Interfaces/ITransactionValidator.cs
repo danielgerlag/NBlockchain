@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace NBlockChain.Interfaces
 {
-    public interface ITransactionValidator<T>
-        where T : AbstractTransaction
+    public interface ITransactionValidator
     {
-        Task<int> Validate(T transaction);
+        string TransactionType { get; }
+        Task<int> Validate(TransactionEnvelope transaction);
     }
 }

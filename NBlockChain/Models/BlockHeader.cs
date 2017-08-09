@@ -6,7 +6,7 @@ namespace NBlockChain.Models
 {
     public class BlockHeader
     {
-        public byte[] BlockID { get; set; }
+        public byte[] BlockId { get; set; }
 
         public BlockStatus Status { get; set; }
 

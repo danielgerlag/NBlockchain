@@ -1,20 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Newtonsoft.Json.Linq;
 
 namespace NBlockChain.Models
 {
-    public abstract class AbstractTransaction
+    public class TransactionEnvelope
     {
-        public long Timestamp { get; set; }
+        public string TransactionType { get; set; }
 
-        public uint Version { get; set; }
+        public long Timestamp { get; set; }
 
         public byte[] Originator { get; set; }
 
         public byte[] Signature { get; set; }
 
-        public abstract byte[] GetRawData();
+        public JObject Transaction { get; set; }
 
     }
 }

@@ -6,7 +6,7 @@ namespace NBlockChain.Models
 {
     public class TransactionResponse
     {
-        public byte[] TransactionID { get; set; }
+        public byte[] TransactionId { get; set; }
 
         public int ResultCode { get; set; }
 

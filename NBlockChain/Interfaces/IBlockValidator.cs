@@ -3,8 +3,8 @@ using NBlockChain.Models;
 
 namespace NBlockChain.Interfaces
 {
-    public interface IBlockValidator<T> where T : AbstractTransaction
+    public interface IBlockValidator
     {
-        Task Validate(Block<T> block);
+        Task Validate(Block block);
     }
 }

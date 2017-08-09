@@ -4,10 +4,9 @@ using System.Threading.Tasks;
 
 namespace NBlockChain.Interfaces
 {
-    public interface IBlockBuilder<T>
-        where T : AbstractTransaction
+    public interface IBlockBuilder
     {
-        Task<Block<T>> BuildBlock(DateTime endTime, byte[] prevBlock);
-        Task<int> QueueTransaction(T transaction);
+        Task<Block> BuildBlock(byte[] prevBlock);
+        Task<int> QueueTransaction(TransactionEnvelope transaction);
     }
 }

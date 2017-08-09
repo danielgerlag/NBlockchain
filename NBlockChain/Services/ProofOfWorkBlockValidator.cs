@@ -9,8 +9,7 @@ using System.Threading.Tasks.Dataflow;
 
 namespace NBlockChain.Services
 {
-    public class ProofOfWorkBlockValidator<T> : IBlockValidator<T>
-        where T : AbstractTransaction
+    public class ProofOfWorkBlockValidator : IBlockValidator
     {
 
         private readonly IHasher _hasher;
@@ -24,7 +23,7 @@ namespace NBlockChain.Services
         }
 
 
-        public async Task Validate(Block<T> block)
+        public async Task Validate(Block block)
         {
             long counter = 0;
             var cancellationTokenSource = new CancellationTokenSource();
@@ -63,7 +62,7 @@ namespace NBlockChain.Services
                 {
                     if (header.Status == BlockStatus.Closed)
                     {
-                        header.BlockID = hash;
+                        header.BlockId = hash;
                         header.Nonce = nonce;
                         header.Status = BlockStatus.Verified;
                     }

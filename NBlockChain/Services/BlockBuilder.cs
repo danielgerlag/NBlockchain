@@ -4,36 +4,42 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 
 namespace NBlockChain.Services
 {
-    public class BlockBuilder<T> : IBlockBuilder<T>
-        where T : AbstractTransaction
+    public class BlockBuilder : IBlockBuilder
     {
 
         private readonly INetworkParameters _networkParameters;
-        private readonly IHasher _hasher;
+        private readonly ITransactionKeyResolver _transactionKeyResolver;
         private readonly IMerkleTreeBuilder _merkleTreeBuilder;
-        private readonly ICollection<ITransactionValidator<T>> _validators;
+        private readonly ICollection<ITransactionValidator> _validators;
+
+        private readonly IServiceProvider _serviceProvider;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
 
-        private readonly Queue<T> _transactionQueue;                
+        private readonly Queue<TransactionEnvelope> _transactionQueue;                
 
-        public BlockBuilder(IHasher hasher, IMerkleTreeBuilder merkleTreeBuilder, IEnumerable<ITransactionValidator<T>> validators, INetworkParameters networkParameters)
+        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IServiceProvider serviceProvider, ICollection<ITransactionValidator> validators)
         {
             _networkParameters = networkParameters;
-            _hasher = hasher;
-            _validators = validators.ToArray();
+            _serviceProvider = serviceProvider;
+            _validators = validators;
+            _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
-            _transactionQueue = new Queue<T>();         
+            _transactionQueue = new Queue<TransactionEnvelope>();         
         }
 
-        public async Task<int> QueueTransaction(T transaction)
+        public async Task<int> QueueTransaction(TransactionEnvelope transaction)
         {
             var result = 0;
 
+            //_serviceProvider.
             foreach (var validator in _validators)
                 result = result & await validator.Validate(transaction);
 
@@ -54,13 +60,13 @@ namespace NBlockChain.Services
 
         }
 
-        public async Task<Block<T>> BuildBlock(DateTime endTime, byte[] prevBlock)
+        public async Task<Block> BuildBlock(byte[] prevBlock)
         {            
-            var targetTxns = SelectTransactions(endTime);
+            var targetTxns = SelectTransactions();
             var hashDict = HashTransactions(targetTxns);
             var merkleRoot = await _merkleTreeBuilder.BuildTree(hashDict.Keys);
                         
-            var result = new Block<T>()
+            var result = new Block()
             {
                 Transactions = targetTxns,                
                 MerkleRootNode = merkleRoot,
@@ -78,17 +84,17 @@ namespace NBlockChain.Services
         }
 
 
-        private ICollection<T> SelectTransactions(DateTime endTime)
+        private ICollection<TransactionEnvelope> SelectTransactions()
         {
-            var targetTransactions = new List<T>();
+            var targetTransactions = new List<TransactionEnvelope>();
             _resetEvent.WaitOne();
             try
             {
-                while (_transactionQueue.Count() > 0)
+                while (_transactionQueue.Any())
                 {
-                    var peek = _transactionQueue.Peek();
-                    if (peek.Timestamp > endTime.Ticks)
-                        break;
+                    //var peek = _transactionQueue.Peek();
+                    //if (peek.Timestamp > endTime.Ticks)
+                    //    break;
 
                     targetTransactions.Add(_transactionQueue.Dequeue());
                 }
@@ -101,17 +107,14 @@ namespace NBlockChain.Services
             return targetTransactions;
         }
 
-        private IDictionary<byte[], T> HashTransactions(ICollection<T> transactions)
+        private IDictionary<byte[], TransactionEnvelope> HashTransactions(ICollection<TransactionEnvelope> transactions)
         {
-            var result = new ConcurrentDictionary<byte[], T>();
+            var result = new ConcurrentDictionary<byte[], TransactionEnvelope>();
 
             Parallel.ForEach(transactions, txn =>
             {
-                var txnHeader = BitConverter.GetBytes(txn.Timestamp)
-                    .Concat(BitConverter.GetBytes(txn.Version));
-
-                var hash = _hasher.ComputeHash(txnHeader.Concat(txn.GetRawData()).ToArray());
-                result[hash] = txn;
+                var key = _transactionKeyResolver.ResolveKey(txn);
+                result[key] = txn;
             });
 
             return result;            
