@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using NBlockChain.Interfaces;
+using NBlockChain.Models;
 using System;
 
 namespace ScratchPad
@@ -10,24 +11,23 @@ namespace ScratchPad
         {
             IServiceProvider serviceProvider = ConfigureServices();
 
-            var blockBuilder = serviceProvider.GetService<IBlockBuilder<TestTransaction>>();
-            var blockValidator = serviceProvider.GetService<IBlockValidator<TestTransaction>>();
+            var blockBuilder = serviceProvider.GetService<IBlockBuilder>();
+            var blockValidator = serviceProvider.GetService<IBlockValidator>();
 
-            blockBuilder.QueueTransaction(new TestTransaction()
+
+
+
+            blockBuilder.QueueTransaction(new TransactionEnvelope(new TestTransaction()
             {
-                Timestamp = DateTime.Now.Ticks,
-                Version = 1,
                 Message = "hello"
-            });
-
-            blockBuilder.QueueTransaction(new TestTransaction()
+            })
             {
                 Timestamp = DateTime.Now.Ticks,
-                Version = 1,
-                Message = "bye"
-            });
+                TransactionType = "test-v1",
+                Originator = new byte[0]
+            });            
 
-            var block = blockBuilder.BuildBlock(DateTime.Now, new byte[0]).Result;
+            var block = blockBuilder.BuildBlock(new byte[0]).Result;
 
             blockValidator.Validate(block).Wait();
 
@@ -39,9 +39,9 @@ namespace ScratchPad
         {
             //setup dependency injection
             IServiceCollection services = new ServiceCollection();
-            services.AddBlockchain<TestTransaction>();
+            services.AddBlockchain();
+            services.AddTransient<ITransactionValidator, TestTransactionValidator>();
             
-
             var serviceProvider = services.BuildServiceProvider();
 
             //config logging

@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using NBlockChain.Interfaces;
 using NBlockChain.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace NBlockChain.Services
 {
@@ -18,9 +20,12 @@ namespace NBlockChain.Services
             TransactionType = attr.TypeId;
         }
 
-        public Task<int> Validate(TransactionEnvelope transaction)
+        public async Task<int> Validate(TransactionEnvelope transaction)
         {
-            throw new NotImplementedException();
+
+            return await Validate(transaction, transaction.Transaction.ToObject<T>());
         }
+
+        protected abstract Task<int> Validate(TransactionEnvelope envelope, T transaction);
     }
 }

@@ -17,5 +17,14 @@ namespace NBlockChain.Models
 
         public JObject Transaction { get; set; }
 
+        public TransactionEnvelope()
+        {
+        }
+
+        public TransactionEnvelope(object transaction)
+        {
+            Transaction = JObject.FromObject(transaction);
+        }
+
     }
 }

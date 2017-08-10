@@ -25,11 +25,11 @@ namespace NBlockChain.Services
 
         private readonly Queue<TransactionEnvelope> _transactionQueue;                
 
-        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IServiceProvider serviceProvider, ICollection<ITransactionValidator> validators)
+        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IServiceProvider serviceProvider, IEnumerable<ITransactionValidator> validators)
         {
             _networkParameters = networkParameters;
             _serviceProvider = serviceProvider;
-            _validators = validators;
+            _validators = validators.ToList();
             _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
             _transactionQueue = new Queue<TransactionEnvelope>();         
@@ -40,7 +40,7 @@ namespace NBlockChain.Services
             var result = 0;
 
             //_serviceProvider.
-            foreach (var validator in _validators)
+            foreach (var validator in _validators.Where(v => v.TransactionType == transaction.TransactionType))
                 result = result & await validator.Validate(transaction);
 
             if (result != 0)
