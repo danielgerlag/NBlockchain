@@ -8,6 +8,7 @@ namespace NBlockChain.Interfaces
 {
     public interface IPeerNetwork
     {
+        Guid NodeId { get; }
 
         Task BroadcastBlock(Block block);
 
@@ -15,11 +16,13 @@ namespace NBlockChain.Interfaces
 
         Task RequestNextBlock(byte[] blockId);
 
-        Action<Block> ReceiveBlock { get; }
+        Action<Guid, Block> ReceiveBlock { get; }
 
-        Action<Block> ReceiveTail { get; }
+        Action<Guid, Block> ReceiveTail { get; }
 
-        Action<TransactionEnvelope> ReceiveTransaction { get; }
+        Action<Guid, byte[]> ReceiveBlockRequest { get; }
+
+        Action<Guid, TransactionEnvelope> ReceiveTransaction { get; }
 
     }
 }

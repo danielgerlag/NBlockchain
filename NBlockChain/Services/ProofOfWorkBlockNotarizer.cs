@@ -24,11 +24,11 @@ namespace NBlockChain.Services
         }
 
 
-        public async Task Notarize(Block block)
+        public async Task Notarize(Block block, CancellationToken cancellationToken)
         {
             long counter = 0;
             var cancellationTokenSource = new CancellationTokenSource();
-            var cancellationToken = cancellationTokenSource.Token;
+            var innerCancellationToken = cancellationTokenSource.Token;
 
             var opts = new ExecutionDataflowBlockOptions()
             {
@@ -38,7 +38,7 @@ namespace NBlockChain.Services
             
             var actionBlock = new ActionBlock<long>(nonce => VerifyForNonce(block.Header, nonce, cancellationTokenSource), opts);
 
-            while (!cancellationToken.IsCancellationRequested)
+            while ((!innerCancellationToken.IsCancellationRequested) && (cancellationToken.IsCancellationRequested))
             {
                 SpinWait.SpinUntil(() => actionBlock.InputCount == 0);
                 actionBlock.Post(counter);

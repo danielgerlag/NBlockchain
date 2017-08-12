@@ -25,8 +25,7 @@ namespace NBlockChain.Services
         private readonly IBlockbaseTransactionBuilder _blockbaseBuilder;
         private readonly IBlockNotarizer _blockNotarizer;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
-
-        private readonly Queue<TransactionEnvelope> _transactionQueue;                
+        private readonly Queue<TransactionEnvelope> _transactionQueue;
 
         public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionValidator> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotarizer blockNotarizer)
         {
@@ -68,12 +67,15 @@ namespace NBlockChain.Services
             }
         }
 
-        public async Task<Block> BuildBlock(byte[] prevBlock, uint height, KeyPair builderKeys)
+        public async Task<Block> BuildBlock(byte[] prevBlock, uint height, KeyPair builderKeys, CancellationToken cancellationToken)
         {            
             var targetTxns = SelectTransactions();
             targetTxns.Add(_blockbaseBuilder.Build(builderKeys, targetTxns));
-            var hashDict = HashTransactions(targetTxns);
+            var hashDict = HashTransactions(targetTxns, cancellationToken);
             var merkleRoot = await _merkleTreeBuilder.BuildTree(hashDict.Keys);
+
+            if (cancellationToken.IsCancellationRequested)
+                return null;
                         
             var result = new Block()
             {
@@ -90,7 +92,10 @@ namespace NBlockChain.Services
                 }
             };
 
-            await _blockNotarizer.Notarize(result);
+            await _blockNotarizer.Notarize(result, cancellationToken);
+
+            if (cancellationToken.IsCancellationRequested)
+                return null;
 
             return result;
         }
@@ -118,10 +123,10 @@ namespace NBlockChain.Services
             return targetTransactions;
         }
 
-        private IDictionary<byte[], TransactionEnvelope> HashTransactions(ICollection<TransactionEnvelope> transactions)
+        private IDictionary<byte[], TransactionEnvelope> HashTransactions(ICollection<TransactionEnvelope> transactions, CancellationToken cancellationToken)
         {
             var result = new ConcurrentDictionary<byte[], TransactionEnvelope>();
-
+                        
             Parallel.ForEach(transactions, txn =>
             {
                 var key = _transactionKeyResolver.ResolveKey(txn);
