@@ -19,6 +19,9 @@ namespace NBlockChain.Services
         private readonly ILogger _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly ITransactionKeyResolver _transactionKeyResolver;
+        private readonly IBlockIntervalCalculator _intervalCalculator;
+        private readonly TransactionBucket _txnBucket = new TransactionBucket();
 
         private bool _isBuilder = false;
         private KeyPair _builderKeys;
@@ -27,7 +30,7 @@ namespace NBlockChain.Services
         private IPeerNetwork PeerNetwork => _serviceProvider.GetService<IPeerNetwork>();
 
 
-        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IBlockBuilder blockBuilder, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider)
+        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IBlockBuilder blockBuilder, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, ITransactionKeyResolver transactionKeyResolver, IBlockIntervalCalculator intervalCalculator)
         {
             _blockRepository = blockRepository;
             _blockVerifier = blockVerifier;
@@ -35,6 +38,8 @@ namespace NBlockChain.Services
             _serviceProvider = serviceProvider;
             _parameters = parameters;
             _dateTimeProvider = dateTimeProvider;
+            _transactionKeyResolver = transactionKeyResolver;
+            _intervalCalculator = intervalCalculator;
             _logger = loggerFactory.CreateLogger<NodeHost>();
         }
 
@@ -45,6 +50,8 @@ namespace NBlockChain.Services
             _isBuilder = true;
             var prevBlockHeader = _blockRepository.GetNewestBlockHeader().Result;
             _blockTimer = new Timer(BuildBlock, null, TimeSpan.FromTicks((_parameters.BlockTime.Ticks + prevBlockHeader.Timestamp) - _dateTimeProvider.UtcTicks), _parameters.BlockTime);
+                        
+
         }
 
         public void StopBuildingBlocks()
@@ -54,9 +61,9 @@ namespace NBlockChain.Services
             _blockBuilder.FlushQueue();
         }
 
-        public async Task RecieveBlock(Block block)
+        public async Task RecieveTail(Block block)
         {
-            if (await _blockRepository.HaveBlock(block))
+            if (await _blockRepository.HaveBlock(block.Header.BlockId))
                 return;
 
             var prevHeader = await _blockRepository.GetNewestBlockHeader();
@@ -72,15 +79,56 @@ namespace NBlockChain.Services
                 return;
             }
 
+            var contentTxnIds = block.Transactions.Select(x => _transactionKeyResolver.ResolveKey(x)).ToList();            
+
+            if (!_blockVerifier.VerifyContentThreshold(contentTxnIds, _txnBucket.GetBucket(block.Header.Height)))
+            {
+                _logger.LogWarning($"Block content verification failed for {BitConverter.ToString(block.Header.BlockId)}");
+                return;
+            }
+
+            _txnBucket.Shift(block.Header.Height, contentTxnIds);
+
+            await _blockRepository.AddBlock(block);
+        }
+
+        public async Task RecieveBlock(Block block)
+        {
+            if (await _blockRepository.HaveBlock(block.Header.BlockId))
+                return;
+
+            if (!await _blockRepository.HaveBlock(block.Header.PreviousBlock))
+                return;
+
+            if (!_blockVerifier.Verify(block))
+            {
+                _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
+                return;
+            }
+
             await _blockRepository.AddBlock(block);
         }
 
         public async Task RecieveTransaction(TransactionEnvelope transaction)
         {
+            var txnResult = _blockVerifier.VerifyTransaction(transaction);
+            
+            if (txnResult == 0)
+            {
+                var txnKey = _transactionKeyResolver.ResolveKey(transaction);
+                _txnBucket.AddTransaction(txnKey, _intervalCalculator.HeightNow);
+            }
+
             if (_isBuilder)
             {
-                var result = await _blockBuilder.QueueTransaction(transaction);
-                //TODO: broadcast rejections
+                if (txnResult == 0)
+                {
+                    await _blockBuilder.QueueTransaction(transaction);
+                }
+                else
+                {
+                    //TODO: broadcast rejections
+                }
             }
         }
 

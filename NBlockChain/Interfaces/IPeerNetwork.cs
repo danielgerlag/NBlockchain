@@ -17,6 +17,8 @@ namespace NBlockChain.Interfaces
 
         Action<Block> ReceiveBlock { get; }
 
+        Action<Block> ReceiveTail { get; }
+
         Action<TransactionEnvelope> ReceiveTransaction { get; }
 
     }

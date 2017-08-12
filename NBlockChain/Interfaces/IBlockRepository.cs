@@ -6,8 +6,10 @@ namespace NBlockChain.Interfaces
     public interface IBlockRepository
     {
         Task AddBlock(Block block);
-        Task<bool> HaveBlock(Block block);
+        Task<bool> HaveBlock(byte[] blockId);
 
         Task<BlockHeader> GetNewestBlockHeader();
+
+        Task<long> GetGenesisBlockTime();
     }
 }

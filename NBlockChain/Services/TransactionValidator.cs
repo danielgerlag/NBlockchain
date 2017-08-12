@@ -20,12 +20,12 @@ namespace NBlockChain.Services
             TransactionType = attr.TypeId;
         }
 
-        public async Task<int> Validate(TransactionEnvelope transaction)
+        public int Validate(TransactionEnvelope transaction)
         {
 
-            return await Validate(transaction, transaction.Transaction.ToObject<T>());
+            return Validate(transaction, transaction.Transaction.ToObject<T>());
         }
 
-        protected abstract Task<int> Validate(TransactionEnvelope envelope, T transaction);
+        protected abstract int Validate(TransactionEnvelope envelope, T transaction);
     }
 }

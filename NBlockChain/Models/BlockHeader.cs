@@ -9,6 +9,8 @@ namespace NBlockChain.Models
     {
         public byte[] BlockId { get; set; }
 
+        public uint Height { get; set; }
+
         public BlockStatus Status { get; set; }
 
         public long Timestamp { get; set; }
@@ -25,6 +27,7 @@ namespace NBlockChain.Models
         {
             return MerkelRoot
                 .Concat(PreviousBlock)
+                .Concat(BitConverter.GetBytes(Height))
                 .Concat(BitConverter.GetBytes(Version))
                 .Concat(BitConverter.GetBytes(nonce))
                 .ToArray();

@@ -7,5 +7,6 @@ namespace NBlockChain.Interfaces
         TimeSpan BlockTime { get; }
         uint Difficulty { get; }
         uint HeaderVersion { get; }
+        decimal ExpectedContentThreshold { get; }
     }
 }

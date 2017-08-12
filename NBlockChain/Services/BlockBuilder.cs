@@ -42,37 +42,17 @@ namespace NBlockChain.Services
             _transactionQueue = new Queue<TransactionEnvelope>();         
         }
 
-        public async Task<int> QueueTransaction(TransactionEnvelope transaction)
+        public async Task QueueTransaction(TransactionEnvelope transaction)
         {
-            var result = 0;
-
-            if (!_addressEncoder.IsValidAddress(transaction.Originator))
-                return -1;
-
-            if (_validTxnTypes.All(x => x.TransactionType != transaction.TransactionType))
-                return -2;
-
-            if (!_signatureService.VerifyTransaction(transaction))
-                return -3;
-            
-            foreach (var validator in _validators.Where(v => v.TransactionType == transaction.TransactionType))
-                result = result & await validator.Validate(transaction);
-
-            if (result != 0)
-                return result;
-
             _resetEvent.WaitOne();
             try
             {                
                 _transactionQueue.Enqueue(transaction);
-
-                return result;
             }
             finally
             {
                 _resetEvent.Set();
             }
-
         }
 
         public void FlushQueue()
@@ -88,7 +68,7 @@ namespace NBlockChain.Services
             }
         }
 
-        public async Task<Block> BuildBlock(byte[] prevBlock, KeyPair builderKeys)
+        public async Task<Block> BuildBlock(byte[] prevBlock, uint height, KeyPair builderKeys)
         {            
             var targetTxns = SelectTransactions();
             targetTxns.Add(_blockbaseBuilder.Build(builderKeys, targetTxns));
@@ -105,6 +85,7 @@ namespace NBlockChain.Services
                     Timestamp = DateTime.UtcNow.Ticks,
                     Status = BlockStatus.Closed,
                     Version = _networkParameters.HeaderVersion,
+                    Height = height,
                     PreviousBlock = prevBlock
                 }
             };

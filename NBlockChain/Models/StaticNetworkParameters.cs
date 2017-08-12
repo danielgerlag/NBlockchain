@@ -10,5 +10,6 @@ namespace NBlockChain.Models
         public TimeSpan BlockTime { get; set; }
         public uint Difficulty { get; set; }
         public uint HeaderVersion { get; set; }
+        public decimal ExpectedContentThreshold { get; set; }
     }
 }

@@ -9,6 +9,6 @@ namespace NBlockChain.Interfaces
     public interface ITransactionValidator
     {
         string TransactionType { get; }
-        Task<int> Validate(TransactionEnvelope transaction);
+        int Validate(TransactionEnvelope transaction);
     }
 }

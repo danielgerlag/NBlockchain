@@ -93,7 +93,8 @@ namespace NBlockChain.Models
             {
                 BlockTime = TimeSpan.FromMinutes(1),
                 Difficulty = 250,
-                HeaderVersion = 1
+                HeaderVersion = 1,
+                ExpectedContentThreshold = 0.8m
             });
 
             AddDefault<IHasher, SHA256Hasher>(ServiceLifetime.Transient);
@@ -113,7 +114,8 @@ namespace NBlockChain.Models
             AddDefault<ITransactionReceiver>(ServiceLifetime.Singleton, sp => sp.GetService<INodeHost>());
 
             AddDefault<IDateTimeProvider, DateTimeProvider>(ServiceLifetime.Singleton);
-            
+            AddDefault<IBlockIntervalCalculator, BlockIntervalCalculator>(ServiceLifetime.Singleton);
+
 
         }
 
