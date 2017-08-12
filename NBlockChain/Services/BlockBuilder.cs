@@ -19,16 +19,23 @@ namespace NBlockChain.Services
         private readonly ITransactionKeyResolver _transactionKeyResolver;
         private readonly IMerkleTreeBuilder _merkleTreeBuilder;
         private readonly ICollection<ITransactionValidator> _validators;
-
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IEnumerable<ValidTransactionType> _validTxnTypes;
+        private readonly IAddressEncoder _addressEncoder;
+        private readonly ISignatureService _signatureService;
+        private readonly IBlockbaseTransactionBuilder _blockbaseBuilder;
+        private readonly IBlockNotarizer _blockNotarizer;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
 
         private readonly Queue<TransactionEnvelope> _transactionQueue;                
 
-        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IServiceProvider serviceProvider, IEnumerable<ITransactionValidator> validators)
+        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionValidator> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotarizer blockNotarizer)
         {
             _networkParameters = networkParameters;
-            _serviceProvider = serviceProvider;
+            _addressEncoder = addressEncoder;
+            _signatureService = signatureService;
+            _blockbaseBuilder = blockbaseBuilder;
+            _validTxnTypes = validTxnTypes;
+            _blockNotarizer = blockNotarizer;
             _validators = validators.ToList();
             _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
@@ -39,7 +46,15 @@ namespace NBlockChain.Services
         {
             var result = 0;
 
-            //_serviceProvider.
+            if (!_addressEncoder.IsValidAddress(transaction.Originator))
+                return -1;
+
+            if (_validTxnTypes.All(x => x.TransactionType != transaction.TransactionType))
+                return -2;
+
+            if (!_signatureService.VerifyTransaction(transaction))
+                return -3;
+            
             foreach (var validator in _validators.Where(v => v.TransactionType == transaction.TransactionType))
                 result = result & await validator.Validate(transaction);
 
@@ -60,9 +75,23 @@ namespace NBlockChain.Services
 
         }
 
-        public async Task<Block> BuildBlock(byte[] prevBlock)
+        public void FlushQueue()
+        {
+            _resetEvent.WaitOne();
+            try
+            {
+                _transactionQueue.Clear();
+            }
+            finally
+            {
+                _resetEvent.Set();
+            }
+        }
+
+        public async Task<Block> BuildBlock(byte[] prevBlock, KeyPair builderKeys)
         {            
             var targetTxns = SelectTransactions();
+            targetTxns.Add(_blockbaseBuilder.Build(builderKeys, targetTxns));
             var hashDict = HashTransactions(targetTxns);
             var merkleRoot = await _merkleTreeBuilder.BuildTree(hashDict.Keys);
                         
@@ -75,10 +104,12 @@ namespace NBlockChain.Services
                     MerkelRoot = merkleRoot.Value,
                     Timestamp = DateTime.UtcNow.Ticks,
                     Status = BlockStatus.Closed,
-                    Version = _networkParameters.TransactionVersion,
+                    Version = _networkParameters.HeaderVersion,
                     PreviousBlock = prevBlock
                 }
             };
+
+            await _blockNotarizer.Notarize(result);
 
             return result;
         }
@@ -92,11 +123,10 @@ namespace NBlockChain.Services
             {
                 while (_transactionQueue.Any())
                 {
-                    //var peek = _transactionQueue.Peek();
-                    //if (peek.Timestamp > endTime.Ticks)
-                    //    break;
+                    var txn = _transactionQueue.Dequeue();
 
-                    targetTransactions.Add(_transactionQueue.Dequeue());
+                    if (targetTransactions.All(x => x.OriginKey != txn.OriginKey && x.Originator != txn.Originator))
+                        targetTransactions.Add(txn);
                 }
             }
             finally

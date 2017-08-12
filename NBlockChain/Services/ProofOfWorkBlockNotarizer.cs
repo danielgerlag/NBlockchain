@@ -9,21 +9,22 @@ using System.Threading.Tasks.Dataflow;
 
 namespace NBlockChain.Services
 {
-    public class ProofOfWorkBlockValidator : IBlockValidator
+    public class ProofOfWorkBlockNotarizer : IBlockNotarizer
     {
-
         private readonly IHasher _hasher;
         private readonly INetworkParameters _networkParameters;
+        private readonly IHashTester _hashTester;
         private readonly AutoResetEvent _lock = new AutoResetEvent(true);
 
-        public ProofOfWorkBlockValidator(IHasher hasher, INetworkParameters networkParameters)
+        public ProofOfWorkBlockNotarizer(IHasher hasher, INetworkParameters networkParameters, IHashTester hashTester)
         {
             _hasher = hasher;
             _networkParameters = networkParameters;
+            _hashTester = hashTester;
         }
 
 
-        public async Task Validate(Block block)
+        public async Task Notarize(Block block)
         {
             long counter = 0;
             var cancellationTokenSource = new CancellationTokenSource();
@@ -49,14 +50,11 @@ namespace NBlockChain.Services
 
         private void VerifyForNonce(BlockHeader header, long nonce, CancellationTokenSource cancellationTokenSource)
         {            
-            var seed = GetHashSeed(header, nonce);
+            var seed = header.CombineHashableElementsWithNonce(nonce);
             var hash = _hasher.ComputeHash(seed);
-
-            Console.WriteLine($"nonce: {nonce} hash: {BitConverter.ToString(hash)}");
-
-            if (TestHash(hash, _networkParameters.Difficulty))
+            
+            if (_hashTester.TestHash(hash, _networkParameters.Difficulty))
             {
-                Console.WriteLine($"Accepted -> nonce: {nonce} hash: {BitConverter.ToString(hash)}");
                 _lock.WaitOne();
                 try
                 {
@@ -64,7 +62,7 @@ namespace NBlockChain.Services
                     {
                         header.BlockId = hash;
                         header.Nonce = nonce;
-                        header.Status = BlockStatus.Verified;
+                        header.Status = BlockStatus.Notarized;
                     }
                 }
                 finally
@@ -74,35 +72,5 @@ namespace NBlockChain.Services
                 }
             }
         }
-
-        private static byte[] GetHashSeed(BlockHeader header, long nonce)
-        {
-            return header.MerkelRoot
-                .Concat(header.PreviousBlock)
-                .Concat(BitConverter.GetBytes(header.Version))
-                .Concat(BitConverter.GetBytes(nonce))
-                .ToArray();
-        }
-
-        private static bool TestHash(byte[] hash, uint difficulty)
-        {
-            var counter = difficulty;            
-
-            foreach (var b in hash)
-            {
-                var byteCounter = Math.Min(counter, 255);
-
-                if (b > (255 - byteCounter))
-                    return false;
-
-                counter -= byteCounter;
-
-                if (counter <= 0)
-                    break;
-            }
-
-            return true;
-        }
-
     }
 }

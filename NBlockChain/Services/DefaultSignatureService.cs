@@ -3,15 +3,24 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Linq;
+using System.Text;
 using NBlockChain.Interfaces;
+using Newtonsoft.Json;
 
 namespace NBlockChain.Services
 {
     public class DefaultSignatureService : ISignatureService
     {
-
-        private readonly ECCurve _curve = ECCurve.NamedCurves.brainpoolP512t1;
+        private readonly IAddressEncoder _addressEncoder;
+        private readonly ITransactionKeyResolver _transactionKeyResolver;
+        private readonly ECCurve _curve = ECCurve.NamedCurves.brainpoolP192t1;
         private readonly HashAlgorithmName _hashAlgorithm = HashAlgorithmName.SHA512;
+
+        public DefaultSignatureService(IAddressEncoder addressEncoder, ITransactionKeyResolver transactionKeyResolver)
+        {
+            _addressEncoder = addressEncoder;
+            _transactionKeyResolver = transactionKeyResolver;
+        }
 
         public KeyPair GenerateKeyPair()
         {
@@ -27,7 +36,7 @@ namespace NBlockChain.Services
             }
         }
 
-        public byte[] SignData(byte[] data, byte[] privateKey)
+        public void SignTransaction(TransactionEnvelope transaction, byte[] privateKey)
         {
             using (var dsa = ECDsa.Create(_curve))
             {                
@@ -42,12 +51,22 @@ namespace NBlockChain.Services
                     }
                 });
 
-                return dsa.SignData(data, _hashAlgorithm);
+                var data = ExtractSignableElements(transaction);
+
+                transaction.Signature = dsa.SignData(data, _hashAlgorithm);
             }
         }
 
-        public bool VerifyData(byte[] data, byte[] signature, byte[] publicKey)
+        public bool VerifyTransaction(TransactionEnvelope transaction)
         {
+            if (transaction.Signature == null)
+                return false;
+
+            if (!_addressEncoder.IsValidAddress(transaction.Originator))
+                return false;
+
+            var pubKey = _addressEncoder.ExtractPublicKey(transaction.Originator);
+
             using (var dsa = ECDsa.Create(_curve))
             {
                 dsa.ImportParameters(new ECParameters()
@@ -55,13 +74,26 @@ namespace NBlockChain.Services
                     Curve = _curve,                    
                     Q = new ECPoint()
                     {
-                        X = publicKey.Take(publicKey.Length / 2).ToArray(),
-                        Y = publicKey.Skip(publicKey.Length / 2).Take(publicKey.Length / 2).ToArray()
+                        X = pubKey.Take(pubKey.Length / 2).ToArray(),
+                        Y = pubKey.Skip(pubKey.Length / 2).Take(pubKey.Length / 2).ToArray()
                     }
                 });
 
-                return dsa.VerifyData(data, signature, _hashAlgorithm);
+                var data = ExtractSignableElements(transaction);
+
+                return dsa.VerifyData(data, transaction.Signature, _hashAlgorithm);
             }
+        }
+
+        private byte[] ExtractSignableElements(TransactionEnvelope txn)
+        {
+            var txnStr = txn.Transaction.ToString(Formatting.None);
+
+            var result = txn.OriginKey.ToByteArray()
+                .Concat(Encoding.Unicode.GetBytes(txn.Originator))
+                .Concat(Encoding.Unicode.GetBytes(txnStr));
+
+            return result.ToArray();
         }
 
     }

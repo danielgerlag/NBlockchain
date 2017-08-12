@@ -9,9 +9,9 @@ namespace NBlockChain.Models
     {
         public string TransactionType { get; set; }
 
-        public long Timestamp { get; set; }
+        public Guid OriginKey{ get; set; }
 
-        public byte[] Originator { get; set; }
+        public string Originator { get; set; }
 
         public byte[] Signature { get; set; }
 

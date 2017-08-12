@@ -8,7 +8,7 @@ namespace NBlockChain.Models
     public class StaticNetworkParameters : INetworkParameters
     {
         public TimeSpan BlockTime { get; set; }
-        public uint TransactionVersion { get; set; }
-        public uint Difficulty { get; set; }        
+        public uint Difficulty { get; set; }
+        public uint HeaderVersion { get; set; }
     }
 }

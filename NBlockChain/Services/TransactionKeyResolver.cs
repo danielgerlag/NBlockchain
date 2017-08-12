@@ -23,8 +23,8 @@ namespace NBlockChain.Services
         {
             var txnStr = txn.Transaction.ToString(Formatting.None);
 
-            var seed = BitConverter.GetBytes(txn.Timestamp)
-                .Concat(txn.Originator)
+            var seed = txn.OriginKey.ToByteArray()
+                .Concat(Encoding.Unicode.GetBytes(txn.Originator))
                 .Concat(Encoding.Unicode.GetBytes(txnStr));
 
             return _hasher.ComputeHash(seed.ToArray());

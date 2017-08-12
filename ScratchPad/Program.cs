@@ -2,6 +2,7 @@
 using NBlockChain.Interfaces;
 using NBlockChain.Models;
 using System;
+using System.Linq;
 
 namespace ScratchPad
 {
@@ -12,24 +13,38 @@ namespace ScratchPad
             IServiceProvider serviceProvider = ConfigureServices();
 
             var blockBuilder = serviceProvider.GetService<IBlockBuilder>();
-            var blockValidator = serviceProvider.GetService<IBlockValidator>();
+            var blockValidator = serviceProvider.GetService<IBlockNotarizer>();
+            var sigService = serviceProvider.GetService<ISignatureService>();
+            var addressEncoder = serviceProvider.GetService<IAddressEncoder>();
+
+            var minerKeys = sigService.GenerateKeyPair();
+
+            var keys = sigService.GenerateKeyPair();
+            var keys2 = sigService.GenerateKeyPair();
+            var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
 
-
-
-            blockBuilder.QueueTransaction(new TransactionEnvelope(new TestTransaction()
+            var txn1 = new TestTransaction()
             {
                 Message = "hello"
-            })
+            };
+
+            var txn1env = new TransactionEnvelope(txn1)
             {
-                Timestamp = DateTime.Now.Ticks,
+                OriginKey = Guid.NewGuid(),
                 TransactionType = "test-v1",
-                Originator = new byte[0]
-            });            
+                Originator = address
+            };
+            
+            sigService.SignTransaction(txn1env, keys2.PrivateKey);
 
-            var block = blockBuilder.BuildBlock(new byte[0]).Result;
+            var qr = blockBuilder.QueueTransaction(txn1env).Result;
 
-            blockValidator.Validate(block).Wait();
+            Console.WriteLine($"qr: {qr}");
+
+            var block = blockBuilder.BuildBlock(new byte[0], minerKeys).Result;
+
+            blockValidator.Notarize(block).Wait();
 
 
             Console.ReadLine();
@@ -39,8 +54,18 @@ namespace ScratchPad
         {
             //setup dependency injection
             IServiceCollection services = new ServiceCollection();
-            services.AddBlockchain();
-            services.AddTransient<ITransactionValidator, TestTransactionValidator>();
+            services.AddBlockchain(x =>
+            {
+                x.AddTransactionType<TestTransaction>();
+                x.AddValidator<TestTransactionValidator>();
+                x.UseBlockbaseProvider<TestBlockbaseBuilder>();
+                x.UseParameters(new StaticNetworkParameters()
+                {
+                    BlockTime = TimeSpan.FromMinutes(1),
+                    Difficulty = 250,
+                    HeaderVersion = 1
+                });
+            });
             
             var serviceProvider = services.BuildServiceProvider();
 

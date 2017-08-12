@@ -3,8 +3,8 @@ using NBlockChain.Models;
 
 namespace NBlockChain.Interfaces
 {
-    public interface IBlockValidator
+    public interface INodeHost : IBlockReceiver, ITransactionReceiver
     {
-        Task Validate(Block block);
+        
     }
 }

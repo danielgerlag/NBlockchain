@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace NBlockChain.Models
@@ -20,12 +21,21 @@ namespace NBlockChain.Models
 
         public byte[] MerkelRoot { get; set; }
 
+        public byte[] CombineHashableElementsWithNonce(long nonce)
+        {
+            return MerkelRoot
+                .Concat(PreviousBlock)
+                .Concat(BitConverter.GetBytes(Version))
+                .Concat(BitConverter.GetBytes(nonce))
+                .ToArray();
+        }
+
     }
 
     public enum BlockStatus
     {
         Open = 0,
         Closed = 1,
-        Verified = 2
+        Notarized = 2
     }
 }
