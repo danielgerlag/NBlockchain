@@ -10,9 +10,12 @@ namespace NBlockChain.Services
 {
     public class InMemoryBlockRepository : IBlockRepository
     {
-
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
         private readonly ICollection<Block> _blocks = new HashSet<Block>();
+
+        public InMemoryBlockRepository()
+        {            
+        }
 
         public async Task AddBlock(Block block)
         {
@@ -28,12 +31,12 @@ namespace NBlockChain.Services
             }
         }
 
-        public async Task<bool> HaveBlock(Block block)
+        public async Task<bool> HaveBlock(byte[] blockId)
         {
             _resetEvent.WaitOne();
             try
             {
-                return await Task.FromResult(_blocks.Any(x => x.Header.BlockId.SequenceEqual(block.Header.BlockId)));
+                return await Task.FromResult(_blocks.Any(x => x.Header.BlockId.SequenceEqual(blockId)));
                 
             }
             finally
@@ -56,25 +59,12 @@ namespace NBlockChain.Services
             }
         }
 
-        //private async T RunSynced<T>(Func<Task<T>> func)
-        //{
-        //    _resetEvent.WaitOne();
-        //    try
-        //    {
-        //        return func();
-        //    }
-        //    finally
-        //    {
-        //        _resetEvent.Set();
-        //    }
-        //}
-
-        private void RunSynced(Action func)
+        public async Task<long> GetGenesisBlockTime()
         {
             _resetEvent.WaitOne();
             try
             {
-                func();
+                return await Task.FromResult(_blocks.Min(x => x.Header.Timestamp));
             }
             finally
             {
