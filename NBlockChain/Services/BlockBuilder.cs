@@ -41,7 +41,7 @@ namespace NBlockChain.Services
             _transactionQueue = new Queue<TransactionEnvelope>();         
         }
 
-        public async Task QueueTransaction(TransactionEnvelope transaction)
+        public void QueueTransaction(TransactionEnvelope transaction)
         {
             _resetEvent.WaitOne();
             try
@@ -88,7 +88,8 @@ namespace NBlockChain.Services
                     Status = BlockStatus.Closed,
                     Version = _networkParameters.HeaderVersion,
                     Height = height,
-                    PreviousBlock = prevBlock
+                    PreviousBlock = prevBlock,
+                    Difficulty = _networkParameters.Difficulty
                 }
             };
 
@@ -133,7 +134,7 @@ namespace NBlockChain.Services
                 result[key] = txn;
             });
 
-            return result;            
+            return result;
         }
 
     }

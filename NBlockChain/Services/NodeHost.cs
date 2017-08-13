@@ -65,6 +65,9 @@ namespace NBlockChain.Services
             _tailEvent.WaitOne();
             try
             {
+                if (block.Header.Difficulty != _parameters.Difficulty)
+                    return;
+
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                     return;
 
@@ -75,7 +78,7 @@ namespace NBlockChain.Services
                     return;
                 }
 
-                if (!_blockVerifier.Verify(block))
+                if (!_blockVerifier.Verify(block, _parameters.Difficulty))
                 {
                     _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return;
@@ -110,7 +113,7 @@ namespace NBlockChain.Services
             if (!await _blockRepository.HaveBlock(block.Header.PreviousBlock))
                 return;
 
-            if (!_blockVerifier.Verify(block))
+            if (!_blockVerifier.Verify(block, block.Header.Difficulty))
             {
                 _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
                 return;
@@ -133,7 +136,7 @@ namespace NBlockChain.Services
             {
                 if (txnResult == 0)
                 {
-                    await _blockBuilder.QueueTransaction(transaction);
+                    _blockBuilder.QueueTransaction(transaction);
                 }
                 else
                 {

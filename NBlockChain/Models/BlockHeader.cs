@@ -11,6 +11,8 @@ namespace NBlockChain.Models
 
         public uint Height { get; set; }
 
+        public uint Difficulty { get; set; }
+
         public BlockStatus Status { get; set; }
 
         public long Timestamp { get; set; }
