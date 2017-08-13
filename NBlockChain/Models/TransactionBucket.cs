@@ -9,16 +9,16 @@ namespace NBlockChain.Models
     public class TransactionBucket
     {
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
-        private readonly Dictionary<uint, ICollection<byte[]>> _buckets = new Dictionary<uint, ICollection<byte[]>>();
+        private readonly Dictionary<uint, ISet<byte[]>> _buckets = new Dictionary<uint, ISet<byte[]>>();
         private readonly IEqualityComparer<byte[]> _byteArrayEqualityComparer = new ByteArrayEqualityComparer();
 
-        public void AddTransaction(byte[] txnId, uint height)
+        public bool AddTransaction(byte[] txnId, uint height)
         {
             _resetEvent.WaitOne();
             try
             {
                 EnsureKey(height);
-                _buckets[height].Add(txnId);
+                return _buckets[height].Add(txnId);
             }
             finally
             {
@@ -62,7 +62,7 @@ namespace NBlockChain.Models
         private void EnsureKey(uint height)
         {
             if (!_buckets.ContainsKey(height))
-                _buckets.Add(height, new HashSet<byte[]>());
+                _buckets.Add(height, new HashSet<byte[]>(_byteArrayEqualityComparer));
         }
 
     }

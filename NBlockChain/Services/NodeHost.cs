@@ -11,7 +11,7 @@ using NBlockChain.Models;
 namespace NBlockChain.Services
 {
     public class NodeHost : INodeHost
-    {
+    {        
         private readonly INetworkParameters _parameters;
         private readonly IBlockRepository _blockRepository;
         private readonly IBlockVerifier _blockVerifier;
@@ -23,7 +23,7 @@ namespace NBlockChain.Services
         private readonly IBlockIntervalCalculator _intervalCalculator;
         private readonly AutoResetEvent _tailEvent = new AutoResetEvent(true);
         private readonly TransactionBucket _txnBucket = new TransactionBucket();
-
+        private readonly byte[] HeadKey = new byte[] { 0x0 };
         private bool _isBuilder = false;
         private KeyPair _builderKeys;
         private Timer _blockTimer;
@@ -111,7 +111,10 @@ namespace NBlockChain.Services
                 return;
 
             if (!await _blockRepository.HaveBlock(block.Header.PreviousBlock))
-                return;
+            {
+                if (!(block.Header.PreviousBlock.SequenceEqual(HeadKey) && await _blockRepository.IsEmpty()))
+                    return;
+            }
 
             if (!_blockVerifier.Verify(block, block.Header.Difficulty))
             {
@@ -129,20 +132,28 @@ namespace NBlockChain.Services
             if (txnResult == 0)
             {
                 var txnKey = _transactionKeyResolver.ResolveKey(transaction);
-                _txnBucket.AddTransaction(txnKey, _intervalCalculator.HeightNow);
-            }
+                var accepted = _txnBucket.AddTransaction(txnKey, _intervalCalculator.HeightNow);
 
-            if (_isBuilder)
-            {
-                if (txnResult == 0)
-                {
-                    _blockBuilder.QueueTransaction(transaction);
+                if (_isBuilder && accepted)
+                {                    
+                    _blockBuilder.QueueTransaction(transaction);                    
                 }
-                else
-                {
-                    //TODO: broadcast rejections
-                }
-            }
+            }            
+
+            await Task.Yield();
+        }
+
+        public async Task BuildGenesisBlock(KeyPair builderKeys)
+        {
+            var cts = new CancellationTokenSource();
+            await _blockBuilder.BuildBlock(HeadKey, 0, builderKeys, cts.Token);
+            _intervalCalculator.ResetGenesisTime();
+        }
+
+        public async Task SendTransaction(TransactionEnvelope transaction)
+        {
+            await RecieveTransaction(transaction);
+            await PeerNetwork.BroadcastTransaction(transaction);
         }
 
         private async void RollOver(object state)
@@ -167,5 +178,6 @@ namespace NBlockChain.Services
             await Task.Delay(TimeSpan.FromSeconds(1));
             _blockTimer.Change(_intervalCalculator.TimeUntilNextBlock, _parameters.BlockTime);
         }
+        
     }
 }

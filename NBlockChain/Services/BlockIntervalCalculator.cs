@@ -10,15 +10,18 @@ namespace NBlockChain.Services
         private readonly INetworkParameters _parameters;
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly IBlockRepository _blockRepository;
-        private readonly Lazy<long> _genesisTime;
+        private Lazy<long> _genesisTime;
 
         public BlockIntervalCalculator(INetworkParameters parameters, IDateTimeProvider dateTimeProvider, IBlockRepository blockRepository)
         {
             _parameters = parameters;
             _dateTimeProvider = dateTimeProvider;
-            _genesisTime = new Lazy<long>(() => _blockRepository.GetGenesisBlockTime().Result);
+            _blockRepository = blockRepository;
+            ResetGenesisTime();
         }
 
+        public void ResetGenesisTime() => _genesisTime = new Lazy<long>(() => _blockRepository.GetGenesisBlockTime().Result);
+        
         public uint DetermineHeight(long now) => Convert.ToUInt32(((now - _genesisTime.Value) / _parameters.BlockTime.Ticks) + 1);
 
         public uint HeightNow => DetermineHeight(_dateTimeProvider.UtcTicks);

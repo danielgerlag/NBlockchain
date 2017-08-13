@@ -13,5 +13,7 @@ namespace NBlockChain.Interfaces
         long LastBlockTime { get; }
 
         TimeSpan TimeUntilNextBlock { get; }
+
+        void ResetGenesisTime();
     }
 }

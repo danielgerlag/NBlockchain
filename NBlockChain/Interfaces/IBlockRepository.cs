@@ -7,7 +7,7 @@ namespace NBlockChain.Interfaces
     {
         Task AddBlock(Block block);
         Task<bool> HaveBlock(byte[] blockId);
-
+        Task<bool> IsEmpty();
         Task<BlockHeader> GetNewestBlockHeader();
 
         Task<long> GetGenesisBlockTime();

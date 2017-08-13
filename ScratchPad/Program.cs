@@ -12,8 +12,8 @@ namespace ScratchPad
         {
             IServiceProvider serviceProvider = ConfigureServices();
 
-            var blockBuilder = serviceProvider.GetService<IBlockBuilder>();
-            var blockValidator = serviceProvider.GetService<IBlockNotarizer>();
+            var node = serviceProvider.GetService<INodeHost>();
+
             var sigService = serviceProvider.GetService<ISignatureService>();
             var addressEncoder = serviceProvider.GetService<IAddressEncoder>();
 
@@ -23,6 +23,8 @@ namespace ScratchPad
             var keys2 = sigService.GenerateKeyPair();
             var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
+            node.BuildGenesisBlock(minerKeys);
+            node.StartBuildingBlocks(minerKeys);
 
             var txn1 = new TestTransaction()
             {
@@ -38,16 +40,15 @@ namespace ScratchPad
             
             sigService.SignTransaction(txn1env, keys2.PrivateKey);
 
-            var qr = blockBuilder.QueueTransaction(txn1env).Result;
+            node.SendTransaction(txn1env);
+            
+            //var block = blockBuilder.BuildBlock(new byte[0], minerKeys).Result;
 
-            Console.WriteLine($"qr: {qr}");
-
-            var block = blockBuilder.BuildBlock(new byte[0], minerKeys).Result;
-
-            blockValidator.Notarize(block).Wait();
+            //blockValidator.Notarize(block).Wait();
 
 
             Console.ReadLine();
+            node.StopBuildingBlocks();
         }
 
         private static IServiceProvider ConfigureServices()
@@ -66,7 +67,8 @@ namespace ScratchPad
                     HeaderVersion = 1
                 });
             });
-            
+
+            services.AddLogging();
             var serviceProvider = services.BuildServiceProvider();
 
             //config logging

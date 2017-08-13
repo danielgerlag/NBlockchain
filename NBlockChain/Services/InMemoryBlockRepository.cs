@@ -14,7 +14,7 @@ namespace NBlockChain.Services
         private readonly ICollection<Block> _blocks = new HashSet<Block>();
 
         public InMemoryBlockRepository()
-        {            
+        {
         }
 
         public async Task AddBlock(Block block)
@@ -64,7 +64,23 @@ namespace NBlockChain.Services
             _resetEvent.WaitOne();
             try
             {
+                if (await IsEmpty())
+                    return DateTime.UtcNow.Ticks;
+
                 return await Task.FromResult(_blocks.Min(x => x.Header.Timestamp));
+            }
+            finally
+            {
+                _resetEvent.Set();
+            }
+        }
+
+        public async Task<bool> IsEmpty()
+        {
+            _resetEvent.WaitOne();
+            try
+            {
+                return await Task.FromResult(!_blocks.Any());
             }
             finally
             {
