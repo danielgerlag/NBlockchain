@@ -63,6 +63,9 @@ namespace NBlockChain.Services
 
         public bool VerifyContentThreshold(ICollection<byte[]> actual, ICollection<byte[]> expected)
         {
+            if (expected.Count == 0)
+                return true;
+
             var count = expected.Count(txn => actual.Contains(txn, _byteArrayEqualityComparer));
             var ratio = (decimal)count / (decimal)expected.Count;
             return (ratio >= _parameters.ExpectedContentThreshold);

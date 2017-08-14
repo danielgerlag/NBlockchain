@@ -38,7 +38,7 @@ namespace NBlockChain.Services
             
             var actionBlock = new ActionBlock<long>(nonce => VerifyForNonce(block.Header, nonce, cancellationTokenSource), opts);
 
-            while ((!innerCancellationToken.IsCancellationRequested) && (cancellationToken.IsCancellationRequested))
+            while ((!innerCancellationToken.IsCancellationRequested) && (!cancellationToken.IsCancellationRequested))
             {
                 SpinWait.SpinUntil(() => actionBlock.InputCount == 0);
                 actionBlock.Post(counter);

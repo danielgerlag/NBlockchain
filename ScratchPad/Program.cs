@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NBlockChain.Interfaces;
 using NBlockChain.Models;
 using System;
@@ -23,7 +24,7 @@ namespace ScratchPad
             var keys2 = sigService.GenerateKeyPair();
             var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
-            node.BuildGenesisBlock(minerKeys);
+            node.BuildGenesisBlock(minerKeys).Wait();
             node.StartBuildingBlocks(minerKeys);
 
             var txn1 = new TestTransaction()
@@ -38,7 +39,7 @@ namespace ScratchPad
                 Originator = address
             };
             
-            sigService.SignTransaction(txn1env, keys2.PrivateKey);
+            sigService.SignTransaction(txn1env, keys.PrivateKey);
 
             node.SendTransaction(txn1env);
             
@@ -62,18 +63,21 @@ namespace ScratchPad
                 x.UseBlockbaseProvider<TestBlockbaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
                 {
-                    BlockTime = TimeSpan.FromMinutes(1),
-                    Difficulty = 250,
-                    HeaderVersion = 1
+                    BlockTime = TimeSpan.FromSeconds(10),
+                    Difficulty = 0,
+                    HeaderVersion = 1,
+                    ExpectedContentThreshold = 0.8m
                 });
             });
 
-            services.AddLogging();
+            services.AddLogging();            
             var serviceProvider = services.BuildServiceProvider();
 
             //config logging
-            //var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-            //loggerFactory.AddDebug();
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+            loggerFactory.AddDebug();
+            loggerFactory.AddConsole(LogLevel.Debug);
+
             return serviceProvider;
         }
     }

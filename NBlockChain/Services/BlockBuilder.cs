@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 
 namespace NBlockChain.Services
 {
@@ -24,10 +25,11 @@ namespace NBlockChain.Services
         private readonly ISignatureService _signatureService;
         private readonly IBlockbaseTransactionBuilder _blockbaseBuilder;
         private readonly IBlockNotarizer _blockNotarizer;
+        private readonly ILogger _logger;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
         private readonly Queue<TransactionEnvelope> _transactionQueue;
 
-        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionValidator> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotarizer blockNotarizer)
+        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionValidator> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotarizer blockNotarizer, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
             _addressEncoder = addressEncoder;
@@ -38,6 +40,7 @@ namespace NBlockChain.Services
             _validators = validators.ToList();
             _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
+            _logger = loggerFactory.CreateLogger<BlockBuilder>();
             _transactionQueue = new Queue<TransactionEnvelope>();         
         }
 
@@ -70,12 +73,16 @@ namespace NBlockChain.Services
         public async Task<Block> BuildBlock(byte[] prevBlock, uint height, KeyPair builderKeys, CancellationToken cancellationToken)
         {            
             var targetTxns = SelectTransactions();
+            _logger.LogDebug($"Building block {height} with {targetTxns.Count} transactions");
             targetTxns.Add(_blockbaseBuilder.Build(builderKeys, targetTxns));
             var hashDict = HashTransactions(targetTxns, cancellationToken);
             var merkleRoot = await _merkleTreeBuilder.BuildTree(hashDict.Keys);
 
             if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogDebug($"Cancelled building block {height}");
                 return null;
+            }
                         
             var result = new Block()
             {
@@ -92,11 +99,17 @@ namespace NBlockChain.Services
                     Difficulty = _networkParameters.Difficulty
                 }
             };
-
+            
+            _logger.LogDebug($"Notarizing block {height}");
             await _blockNotarizer.Notarize(result, cancellationToken);
 
             if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogDebug($"Cancelled building block {height}");
                 return null;
+            }
+
+            _logger.LogDebug($"Built block {height} - {BitConverter.ToString(result.Header.BlockId)}");
 
             return result;
         }

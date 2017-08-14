@@ -65,6 +65,8 @@ namespace NBlockChain.Services
             _tailEvent.WaitOne();
             try
             {
+                _logger.LogDebug($"Recv tail {BitConverter.ToString(block.Header.BlockId)}");
+
                 if (block.Header.Difficulty != _parameters.Difficulty)
                     return;
 
@@ -73,9 +75,15 @@ namespace NBlockChain.Services
 
                 var prevHeader = await _blockRepository.GetNewestBlockHeader();
 
-                if (!block.Header.PreviousBlock.SequenceEqual(prevHeader.BlockId))
+                if (prevHeader != null)
                 {
-                    return;
+                    if (!block.Header.PreviousBlock.SequenceEqual(prevHeader.BlockId))
+                        return;
+                }
+                else
+                {
+                    if (!(block.Header.PreviousBlock.SequenceEqual(HeadKey) && await _blockRepository.IsEmpty()))
+                        return;
                 }
 
                 if (!_blockVerifier.Verify(block, _parameters.Difficulty))
@@ -96,6 +104,8 @@ namespace NBlockChain.Services
 
                 await _blockRepository.AddBlock(block);
 
+                _logger.LogDebug($"Accepted tail {BitConverter.ToString(block.Header.BlockId)}");
+
                 if (_cancelTokenSource != null)
                     _cancelTokenSource.Cancel();
             }
@@ -107,6 +117,8 @@ namespace NBlockChain.Services
 
         public async Task RecieveBlock(Block block)
         {
+            _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)}");
+
             if (await _blockRepository.HaveBlock(block.Header.BlockId))
                 return;
 
@@ -123,10 +135,13 @@ namespace NBlockChain.Services
             }
 
             await _blockRepository.AddBlock(block);
+
+            _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
         }
 
         public async Task RecieveTransaction(TransactionEnvelope transaction)
-        {
+        {            
+            _logger.LogDebug($"Recv txn {transaction.OriginKey} from {transaction.Originator}");
             var txnResult = _blockVerifier.VerifyTransaction(transaction);
             
             if (txnResult == 0)
@@ -135,19 +150,30 @@ namespace NBlockChain.Services
                 var accepted = _txnBucket.AddTransaction(txnKey, _intervalCalculator.HeightNow);
 
                 if (_isBuilder && accepted)
-                {                    
+                {
+                    _logger.LogDebug($"Accepted txn {transaction.OriginKey} from {transaction.Originator}");
                     _blockBuilder.QueueTransaction(transaction);                    
                 }
-            }            
+            }
+            else
+            {
+                _logger.LogDebug($"Rejected txn {transaction.OriginKey} from {transaction.Originator} code: {txnResult}");
+                //broadcast rejection???
+            }
 
             await Task.Yield();
         }
 
         public async Task BuildGenesisBlock(KeyPair builderKeys)
         {
+            _logger.LogInformation($"Building genesis block");
             var cts = new CancellationTokenSource();
-            await _blockBuilder.BuildBlock(HeadKey, 0, builderKeys, cts.Token);
+            var block = await _blockBuilder.BuildBlock(HeadKey, 0, builderKeys, cts.Token);
+            await RecieveTail(block);
+            await PeerNetwork.BroadcastBlock(block);
             _intervalCalculator.ResetGenesisTime();
+            _blockTimer.Change(_intervalCalculator.TimeUntilNextBlock, _parameters.BlockTime);
+            _logger.LogInformation($"Built genesis block {BitConverter.ToString(block.Header.BlockId)}");
         }
 
         public async Task SendTransaction(TransactionEnvelope transaction)

@@ -50,8 +50,12 @@ namespace NBlockChain.Services
             _resetEvent.WaitOne();
             try
             {
-                var max = _blocks.Max(x => x.Header.Timestamp);
-                return await Task.FromResult(_blocks.First(x => x.Header.Timestamp == max).Header);
+                if (!_blocks.Any())
+                    return null;
+
+                var max = _blocks.Max(x => x.Header.Height);
+                var block = _blocks.FirstOrDefault(x => x.Header.Height == max);
+                return await Task.FromResult(block?.Header);
             }
             finally
             {
@@ -64,7 +68,7 @@ namespace NBlockChain.Services
             _resetEvent.WaitOne();
             try
             {
-                if (await IsEmpty())
+                if (!_blocks.Any())
                     return DateTime.UtcNow.Ticks;
 
                 return await Task.FromResult(_blocks.Min(x => x.Header.Timestamp));
