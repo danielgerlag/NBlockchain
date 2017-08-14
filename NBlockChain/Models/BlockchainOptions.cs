@@ -5,6 +5,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using NBlockChain.Interfaces;
 using NBlockChain.Services;
+using NBlockChain.Services.Hashers;
 
 namespace NBlockChain.Models
 {

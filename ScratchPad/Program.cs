@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using NBlockChain.Interfaces;
 using NBlockChain.Models;
+using NBlockChain.Services.Hashers;
 using System;
 using System.Linq;
 
@@ -64,7 +65,7 @@ namespace ScratchPad
                 x.UseParameters(new StaticNetworkParameters()
                 {
                     BlockTime = TimeSpan.FromSeconds(10),
-                    Difficulty = 0,
+                    Difficulty = 500,
                     HeaderVersion = 1,
                     ExpectedContentThreshold = 0.8m
                 });

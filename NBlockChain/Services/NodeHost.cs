@@ -184,11 +184,14 @@ namespace NBlockChain.Services
 
         private async void RollOver(object state)
         {
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            _blockTimer.Change(_intervalCalculator.TimeUntilNextBlock, _parameters.BlockTime);
             if (_isBuilder)
             {
-                _cancelTokenSource = new CancellationTokenSource();
-                
-                var prevBlockHeader = await _blockRepository.GetNewestBlockHeader();                
+                _cancelTokenSource = new CancellationTokenSource();                
+                var prevBlockHeader = await _blockRepository.GetNewestBlockHeader();
+                if (prevBlockHeader == null)
+                    return;
 
                 var block = await _blockBuilder.BuildBlock(prevBlockHeader.BlockId, _intervalCalculator.HeightNow, _builderKeys, _cancelTokenSource.Token);
 
@@ -201,8 +204,6 @@ namespace NBlockChain.Services
                     }
                 }
             }
-            await Task.Delay(TimeSpan.FromSeconds(1));
-            _blockTimer.Change(_intervalCalculator.TimeUntilNextBlock, _parameters.BlockTime);
         }
         
     }

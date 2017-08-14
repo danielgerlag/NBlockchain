@@ -21,8 +21,8 @@ namespace NBlockChain.Services
         }
 
         public void ResetGenesisTime() => _genesisTime = new Lazy<long>(() => _blockRepository.GetGenesisBlockTime().Result);
-        
-        public uint DetermineHeight(long now) => Convert.ToUInt32(((now - _genesisTime.Value) / _parameters.BlockTime.Ticks) + 1);
+
+        public uint DetermineHeight(long now) => Convert.ToUInt32(((now - _genesisTime.Value) / _parameters.BlockTime.Ticks));
 
         public uint HeightNow => DetermineHeight(_dateTimeProvider.UtcTicks);
 
@@ -30,6 +30,17 @@ namespace NBlockChain.Services
 
         public long LastBlockTime => (_genesisTime.Value + ((HeightNow - 1) * _parameters.BlockTime.Ticks));
 
-        public TimeSpan TimeUntilNextBlock => new TimeSpan(NextBlockTime - _dateTimeProvider.UtcTicks);
+        public TimeSpan TimeUntilNextBlock
+        {
+            get
+            {
+                var result = new TimeSpan(NextBlockTime - _dateTimeProvider.UtcTicks);
+                while (result.Ticks < 0)
+                    result = result.Add(_parameters.BlockTime);
+
+                return result;
+            }
+        }
+            
     }
 }
