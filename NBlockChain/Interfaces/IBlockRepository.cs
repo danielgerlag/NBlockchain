@@ -9,7 +9,7 @@ namespace NBlockChain.Interfaces
         Task<bool> HaveBlock(byte[] blockId);
         Task<bool> IsEmpty();
         Task<BlockHeader> GetNewestBlockHeader();
-
+        Task<Block> GetNextBlock(byte[] prevBlockId);
         Task<long> GetGenesisBlockTime();
     }
 }

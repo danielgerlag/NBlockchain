@@ -19,7 +19,8 @@ namespace NBlockChain.Services
         {
             _addressEncoder = addressEncoder;
             _signatureService = signatureService;
-            _transactionTypeMetadata = typeof(T).GetTypeInfo().GetCustomAttribute<TransactionTypeAttribute>();
+            var typeInfo = typeof(T).GetTypeInfo();
+            _transactionTypeMetadata = typeInfo.GetCustomAttribute<TransactionTypeAttribute>();
         }
 
         public TransactionEnvelope Build(KeyPair builderKeys, ICollection<TransactionEnvelope> transactions)

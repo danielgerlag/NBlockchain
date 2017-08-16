@@ -6,18 +6,14 @@ using System.Text;
 
 namespace NBlockChain.Services.Hashers
 {
-    public class SHA256Hasher : IHasher, IDisposable
+    public class SHA256Hasher : IHasher
     {
-        private readonly HashAlgorithm _algorithm = SHA256.Create();
-
         public byte[] ComputeHash(byte[] input)
         {
-            return _algorithm.ComputeHash(input);
-        }
-
-        public void Dispose()
-        {
-            _algorithm.Dispose();
+            using (var h = SHA256.Create())
+            {
+                return h.ComputeHash(input);
+            }
         }
     }
 }

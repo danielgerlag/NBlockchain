@@ -39,8 +39,7 @@ namespace NBlockChain.Models
 
     public enum BlockStatus
     {
-        Open = 0,
-        Closed = 1,
-        Notarized = 2
+        Unconfirmed = 0,
+        Confirmed = 1
     }
 }

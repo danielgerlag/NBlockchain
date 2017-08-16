@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NBlockChain\NBlockChain.csproj" />
+    <ProjectReference Include="..\Providers\NBlockchain.MongoDB\NBlockchain.MongoDB.csproj" />
   </ItemGroup>
 
 </Project>

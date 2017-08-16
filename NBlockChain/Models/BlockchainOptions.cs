@@ -32,10 +32,10 @@ namespace NBlockChain.Models
             _services.AddTransient(typeof(IHasher), typeof(T));
         }
 
-        public void UseBlockNotarizer<T>()
-            where T : IBlockNotarizer
+        public void UseBlockNotary<T>()
+            where T : IBlockNotary
         {
-            _services.AddTransient(typeof(IBlockNotarizer), typeof(T));
+            _services.AddTransient(typeof(IBlockNotary), typeof(T));
         }
 
         public void UseSignatureService<T>()
@@ -54,6 +54,11 @@ namespace NBlockChain.Models
             where T : IBlockRepository
         {
             _services.AddTransient(typeof(IBlockRepository), typeof(T));
+        }
+
+        public void UseBlockRepository(Func<IServiceProvider, IBlockRepository> factory)
+        {
+            _services.AddTransient<IBlockRepository>(factory);
         }
 
         public void UsePeerNetwork<T>()
@@ -102,7 +107,7 @@ namespace NBlockChain.Models
             AddDefault<ITransactionKeyResolver, TransactionKeyResolver>(ServiceLifetime.Transient);
             AddDefault<ISignatureService, DefaultSignatureService>(ServiceLifetime.Transient);
             AddDefault<IMerkleTreeBuilder, MerkleTreeBuilder>(ServiceLifetime.Transient);
-            AddDefault<IBlockNotarizer, ProofOfWorkBlockNotarizer>(ServiceLifetime.Transient);
+            AddDefault<IBlockNotary, ProofOfWorkBlockNotary>(ServiceLifetime.Transient);
             AddDefault<IAddressEncoder, AddressEncoder>(ServiceLifetime.Transient);
             AddDefault<IBlockBuilder, BlockBuilder>(ServiceLifetime.Transient);
             AddDefault<IHashTester, HashTester>(ServiceLifetime.Transient);
@@ -116,6 +121,7 @@ namespace NBlockChain.Models
 
             AddDefault<IDateTimeProvider, DateTimeProvider>(ServiceLifetime.Singleton);
             AddDefault<IBlockIntervalCalculator, BlockIntervalCalculator>(ServiceLifetime.Singleton);
+            AddDefault<IBuildQueue, BuildQueue>(ServiceLifetime.Singleton);
 
 
         }

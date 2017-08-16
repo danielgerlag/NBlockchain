@@ -24,19 +24,19 @@ namespace NBlockChain.Services
         private readonly IAddressEncoder _addressEncoder;
         private readonly ISignatureService _signatureService;
         private readonly IBlockbaseTransactionBuilder _blockbaseBuilder;
-        private readonly IBlockNotarizer _blockNotarizer;
+        private readonly IBlockNotary _blockNotary;
         private readonly ILogger _logger;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
         private readonly Queue<TransactionEnvelope> _transactionQueue;
 
-        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionValidator> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotarizer blockNotarizer, ILoggerFactory loggerFactory)
+        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionValidator> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotary blockNotary, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
             _addressEncoder = addressEncoder;
             _signatureService = signatureService;
             _blockbaseBuilder = blockbaseBuilder;
             _validTxnTypes = validTxnTypes;
-            _blockNotarizer = blockNotarizer;
+            _blockNotary = blockNotary;
             _validators = validators.ToList();
             _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
@@ -92,7 +92,7 @@ namespace NBlockChain.Services
                 {
                     MerkelRoot = merkleRoot.Value,
                     Timestamp = DateTime.UtcNow.Ticks,
-                    Status = BlockStatus.Closed,
+                    Status = BlockStatus.Unconfirmed,
                     Version = _networkParameters.HeaderVersion,
                     Height = height,
                     PreviousBlock = prevBlock,
@@ -101,7 +101,7 @@ namespace NBlockChain.Services
             };
             
             _logger.LogDebug($"Notarizing block {height}");
-            await _blockNotarizer.Notarize(result, cancellationToken);
+            await _blockNotary.ConfirmBlock(result, cancellationToken);
 
             if (cancellationToken.IsCancellationRequested)
             {

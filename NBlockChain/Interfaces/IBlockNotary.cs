@@ -4,8 +4,8 @@ using System.Threading;
 
 namespace NBlockChain.Interfaces
 {
-    public interface IBlockNotarizer
+    public interface IBlockNotary
     {
-        Task Notarize(Block block, CancellationToken cancellationToken);
+        Task ConfirmBlock(Block block, CancellationToken cancellationToken);
     }
 }

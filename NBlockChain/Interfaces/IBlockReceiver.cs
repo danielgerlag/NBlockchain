@@ -8,7 +8,7 @@ namespace NBlockChain.Interfaces
 {
     public interface IBlockReceiver
     {
-        Task RecieveBlock(Block block);
+        Task<bool> RecieveBlock(Block block);
 
         Task RecieveTail(Block block);
     }

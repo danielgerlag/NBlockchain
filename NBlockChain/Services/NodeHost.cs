@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using NBlockChain.Interfaces;
 using NBlockChain.Models;
+using System.Collections.Concurrent;
 
 namespace NBlockChain.Services
 {
@@ -21,18 +22,19 @@ namespace NBlockChain.Services
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly ITransactionKeyResolver _transactionKeyResolver;
         private readonly IBlockIntervalCalculator _intervalCalculator;
+        private readonly IBuildQueue _buildQueue;
+        private readonly IPeerNetwork _peerNetwork;
         private readonly AutoResetEvent _tailEvent = new AutoResetEvent(true);
         private readonly TransactionBucket _txnBucket = new TransactionBucket();
+        
+
         private readonly byte[] HeadKey = new byte[] { 0x0 };
-        private bool _isBuilder = false;
-        private KeyPair _builderKeys;
-        private Timer _blockTimer;
-        private CancellationTokenSource _cancelTokenSource;
-
-        private IPeerNetwork PeerNetwork => _serviceProvider.GetService<IPeerNetwork>();
+        private readonly Timer _blockTimer;
+        private readonly Timer _pollTimer;
+        
 
 
-        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IBlockBuilder blockBuilder, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, ITransactionKeyResolver transactionKeyResolver, IBlockIntervalCalculator intervalCalculator)
+        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IBlockBuilder blockBuilder, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, ITransactionKeyResolver transactionKeyResolver, IBlockIntervalCalculator intervalCalculator, IBuildQueue buildQueue, IPeerNetwork peerNetwork)
         {
             _blockRepository = blockRepository;
             _blockVerifier = blockVerifier;
@@ -42,21 +44,25 @@ namespace NBlockChain.Services
             _dateTimeProvider = dateTimeProvider;
             _transactionKeyResolver = transactionKeyResolver;
             _intervalCalculator = intervalCalculator;
+            _buildQueue = buildQueue;
+            _peerNetwork = peerNetwork;
             _logger = loggerFactory.CreateLogger<NodeHost>();
-                        
+
+            _peerNetwork.RegisterBlockReceiver(this);
+            _peerNetwork.RegisterTransactionReceiver(this);
             _blockTimer = new Timer(RollOver, null, _intervalCalculator.TimeUntilNextBlock, _parameters.BlockTime);
+            _pollTimer = new Timer(GetMissingBlocks, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30));
         }
 
         public void StartBuildingBlocks(KeyPair builderKeys)
         {
-            _builderKeys = builderKeys;
             _blockBuilder.FlushQueue();
-            _isBuilder = true;
+            _buildQueue.Start(builderKeys);
         }
 
         public void StopBuildingBlocks()
         {
-            _isBuilder = false;
+            _buildQueue.Stop();
             _blockBuilder.FlushQueue();
         }
 
@@ -106,8 +112,7 @@ namespace NBlockChain.Services
 
                 _logger.LogDebug($"Accepted tail {BitConverter.ToString(block.Header.BlockId)}");
 
-                if (_cancelTokenSource != null)
-                    _cancelTokenSource.Cancel();
+                _buildQueue.CancelBlock(block.Header.Height);
             }
             finally
             {
@@ -115,28 +120,31 @@ namespace NBlockChain.Services
             }            
         }
 
-        public async Task RecieveBlock(Block block)
+        public async Task<bool> RecieveBlock(Block block)
         {
             _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)}");
 
             if (await _blockRepository.HaveBlock(block.Header.BlockId))
-                return;
+                return true;
 
             if (!await _blockRepository.HaveBlock(block.Header.PreviousBlock))
             {
                 if (!(block.Header.PreviousBlock.SequenceEqual(HeadKey) && await _blockRepository.IsEmpty()))
-                    return;
+                    return true;
             }
 
             if (!_blockVerifier.Verify(block, block.Header.Difficulty))
             {
                 _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
-                return;
+                return false;
             }
 
             await _blockRepository.AddBlock(block);
 
             _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
+
+            GetMissingBlocks(null);
+            return true;
         }
 
         public async Task RecieveTransaction(TransactionEnvelope transaction)
@@ -149,7 +157,7 @@ namespace NBlockChain.Services
                 var txnKey = _transactionKeyResolver.ResolveKey(transaction);
                 var accepted = _txnBucket.AddTransaction(txnKey, _intervalCalculator.HeightNow);
 
-                if (_isBuilder && accepted)
+                if (_buildQueue.Running && accepted)
                 {
                     _logger.LogDebug($"Accepted txn {transaction.OriginKey} from {transaction.Originator}");
                     _blockBuilder.QueueTransaction(transaction);                    
@@ -170,7 +178,7 @@ namespace NBlockChain.Services
             var cts = new CancellationTokenSource();
             var block = await _blockBuilder.BuildBlock(HeadKey, 0, builderKeys, cts.Token);
             await RecieveTail(block);
-            await PeerNetwork.BroadcastBlock(block);
+            await _peerNetwork.BroadcastBlock(block);
             _intervalCalculator.ResetGenesisTime();
             _blockTimer.Change(_intervalCalculator.TimeUntilNextBlock, _parameters.BlockTime);
             _logger.LogInformation($"Built genesis block {BitConverter.ToString(block.Header.BlockId)}");
@@ -179,30 +187,30 @@ namespace NBlockChain.Services
         public async Task SendTransaction(TransactionEnvelope transaction)
         {
             await RecieveTransaction(transaction);
-            await PeerNetwork.BroadcastTransaction(transaction);
+            await _peerNetwork.BroadcastTransaction(transaction);
         }
 
         private async void RollOver(object state)
         {
             await Task.Delay(TimeSpan.FromSeconds(1));
             _blockTimer.Change(_intervalCalculator.TimeUntilNextBlock, _parameters.BlockTime);
-            if (_isBuilder)
+            var height = _intervalCalculator.HeightNow;
+            _buildQueue.EnqueueBlock(height);
+        }
+
+        private async void GetMissingBlocks(object state)
+        {
+            var prevHeader = await _blockRepository.GetNewestBlockHeader();
+
+            if (prevHeader == null)
             {
-                _cancelTokenSource = new CancellationTokenSource();                
-                var prevBlockHeader = await _blockRepository.GetNewestBlockHeader();
-                if (prevBlockHeader == null)
-                    return;
+                await _peerNetwork.RequestNextBlock(HeadKey);
+                return;
+            }
 
-                var block = await _blockBuilder.BuildBlock(prevBlockHeader.BlockId, _intervalCalculator.HeightNow, _builderKeys, _cancelTokenSource.Token);
-
-                if (block != null)
-                {
-                    if (block.Header.Status == BlockStatus.Notarized)
-                    {
-                        var task1 = RecieveTail(block);
-                        var task2 = PeerNetwork.BroadcastBlock(block);
-                    }
-                }
+            if (prevHeader.Height < (_intervalCalculator.HeightNow - 1))
+            {
+                await _peerNetwork.RequestNextBlock(prevHeader.BlockId);
             }
         }
         

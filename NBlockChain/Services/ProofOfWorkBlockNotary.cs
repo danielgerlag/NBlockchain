@@ -9,14 +9,14 @@ using System.Threading.Tasks.Dataflow;
 
 namespace NBlockChain.Services
 {
-    public class ProofOfWorkBlockNotarizer : IBlockNotarizer
+    public class ProofOfWorkBlockNotary : IBlockNotary
     {
         private readonly IHasher _hasher;
         private readonly INetworkParameters _networkParameters;
         private readonly IHashTester _hashTester;
         private readonly AutoResetEvent _lock = new AutoResetEvent(true);
 
-        public ProofOfWorkBlockNotarizer(IHasher hasher, INetworkParameters networkParameters, IHashTester hashTester)
+        public ProofOfWorkBlockNotary(IHasher hasher, INetworkParameters networkParameters, IHashTester hashTester)
         {
             _hasher = hasher;
             _networkParameters = networkParameters;
@@ -24,7 +24,7 @@ namespace NBlockChain.Services
         }
 
 
-        public async Task Notarize(Block block, CancellationToken cancellationToken)
+        public async Task ConfirmBlock(Block block, CancellationToken cancellationToken)
         {
             long counter = 0;
             var cancellationTokenSource = new CancellationTokenSource();
@@ -58,11 +58,11 @@ namespace NBlockChain.Services
                 _lock.WaitOne();
                 try
                 {
-                    if (header.Status == BlockStatus.Closed)
+                    if (header.Status == BlockStatus.Unconfirmed)
                     {
                         header.BlockId = hash;
                         header.Nonce = nonce;
-                        header.Status = BlockStatus.Notarized;
+                        header.Status = BlockStatus.Confirmed;
                     }
                 }
                 finally

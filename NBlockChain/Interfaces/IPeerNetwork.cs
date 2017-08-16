@@ -24,5 +24,13 @@ namespace NBlockChain.Interfaces
 
         Action<Guid, TransactionEnvelope> ReceiveTransaction { get; }
 
+        void RegisterBlockReceiver(IBlockReceiver blockReceiver);
+
+        void RegisterTransactionReceiver(ITransactionReceiver transactionReciever);
+
+        void DeregisterBlockReceiver(IBlockReceiver blockReceiver);
+
+        void DeregisterTransactionReceiver(ITransactionReceiver transactionReciever);
+
     }
 }

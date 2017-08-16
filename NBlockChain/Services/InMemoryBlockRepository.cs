@@ -8,6 +8,9 @@ using NBlockChain.Models;
 
 namespace NBlockChain.Services
 {
+    /// <summary>
+    /// In-memory block repository for testing & demo purposes
+    /// </summary>
     public class InMemoryBlockRepository : IBlockRepository
     {
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
@@ -56,6 +59,20 @@ namespace NBlockChain.Services
                 var max = _blocks.Max(x => x.Header.Height);
                 var block = _blocks.FirstOrDefault(x => x.Header.Height == max);
                 return await Task.FromResult(block?.Header);
+            }
+            finally
+            {
+                _resetEvent.Set();
+            }
+        }
+
+        public async Task<Block> GetNextBlock(byte[] prevBlockId)
+        {
+            _resetEvent.WaitOne();
+            try
+            {
+                var block = _blocks.FirstOrDefault(x => x.Header.PreviousBlock.SequenceEqual(prevBlockId));
+                return await Task.FromResult(block);
             }
             finally
             {

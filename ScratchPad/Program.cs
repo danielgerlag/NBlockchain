@@ -46,7 +46,7 @@ namespace ScratchPad
             
             //var block = blockBuilder.BuildBlock(new byte[0], minerKeys).Result;
 
-            //blockValidator.Notarize(block).Wait();
+            //blockValidator.ConfirmBlock(block).Wait();
 
 
             Console.ReadLine();
@@ -59,13 +59,14 @@ namespace ScratchPad
             IServiceCollection services = new ServiceCollection();
             services.AddBlockchain(x =>
             {
+                x.UseMongoDB(@"mongodb://localhost:27017", "nbc");
                 x.AddTransactionType<TestTransaction>();
                 x.AddValidator<TestTransactionValidator>();
                 x.UseBlockbaseProvider<TestBlockbaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
                 {
                     BlockTime = TimeSpan.FromSeconds(10),
-                    Difficulty = 500,
+                    Difficulty = 700,
                     HeaderVersion = 1,
                     ExpectedContentThreshold = 0.8m
                 });
