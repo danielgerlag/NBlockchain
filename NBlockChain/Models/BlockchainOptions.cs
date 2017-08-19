@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NBlockChain.Interfaces;
 using NBlockChain.Services;
 using NBlockChain.Services.Hashers;
@@ -61,10 +62,9 @@ namespace NBlockChain.Models
             _services.AddTransient<IBlockRepository>(factory);
         }
 
-        public void UsePeerNetwork<T>()
-            where T : IPeerNetwork
+        public void UseTcpPeerNetwork(uint port)
         {
-            _services.AddSingleton(typeof(IPeerNetwork), typeof(T));
+            _services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>()));
         }
 
         public void UseParameters<T>()
@@ -82,6 +82,17 @@ namespace NBlockChain.Models
             where T : ITransactionValidator
         {
             _services.AddTransient(typeof(ITransactionValidator), typeof(T));
+        }
+
+        public void AddPeerDiscovery<T>()
+            where T : IPeerDiscoveryService
+        {
+            _services.AddTransient(typeof(IPeerDiscoveryService), typeof(T));
+        }
+
+        public void AddPeerDiscovery(Func<IServiceProvider, IPeerDiscoveryService> factory)
+        {
+            _services.AddTransient<IPeerDiscoveryService>(factory);
         }
 
         public void AddTransactionType<T>()
@@ -109,7 +120,7 @@ namespace NBlockChain.Models
             AddDefault<IMerkleTreeBuilder, MerkleTreeBuilder>(ServiceLifetime.Transient);
             AddDefault<IBlockNotary, ProofOfWorkBlockNotary>(ServiceLifetime.Transient);
             AddDefault<IAddressEncoder, AddressEncoder>(ServiceLifetime.Transient);
-            AddDefault<IBlockBuilder, BlockBuilder>(ServiceLifetime.Transient);
+            AddDefault<IBlockBuilder, BlockBuilder>(ServiceLifetime.Singleton);
             AddDefault<IHashTester, HashTester>(ServiceLifetime.Transient);
             AddDefault<IBlockVerifier, BlockVerifier>(ServiceLifetime.Transient);
             AddDefault<IPeerNetwork, InProcessPeerNetwork>(ServiceLifetime.Singleton);

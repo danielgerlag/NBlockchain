@@ -10,27 +10,21 @@ namespace NBlockChain.Interfaces
     {
         Guid NodeId { get; }
 
-        Task BroadcastBlock(Block block);
+        void BroadcastTail(Block block);
 
-        Task BroadcastTransaction(TransactionEnvelope transaction);
+        void BroadcastTransaction(TransactionEnvelope transaction);
 
-        Task RequestNextBlock(byte[] blockId);
-
-        Action<Guid, Block> ReceiveBlock { get; }
-
-        Action<Guid, Block> ReceiveTail { get; }
-
-        Action<Guid, byte[]> ReceiveBlockRequest { get; }
-
-        Action<Guid, TransactionEnvelope> ReceiveTransaction { get; }
-
+        void RequestNextBlock(byte[] blockId);
+        
         void RegisterBlockReceiver(IBlockReceiver blockReceiver);
 
         void RegisterTransactionReceiver(ITransactionReceiver transactionReciever);
 
-        void DeregisterBlockReceiver(IBlockReceiver blockReceiver);
+        void DiscoverPeers();
 
-        void DeregisterTransactionReceiver(ITransactionReceiver transactionReciever);
+        void Open();
+
+        void Close();
 
     }
 }

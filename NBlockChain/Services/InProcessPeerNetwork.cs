@@ -11,9 +11,10 @@ namespace NBlockChain.Services
     public class InProcessPeerNetwork : IPeerNetwork, IDisposable
     {
         private static readonly IList<InProcessPeerNetwork> Peers = new List<InProcessPeerNetwork>();
-        private readonly ICollection<IBlockReceiver> _blockRecievers = new HashSet<IBlockReceiver>();
-        private readonly ICollection<ITransactionReceiver> _transactionRecievers = new HashSet<ITransactionReceiver>();
         private readonly IBlockRepository _blockRepository;
+
+        private IBlockReceiver _blockReciever;
+        private ITransactionReceiver _transactionReciever;
 
         public Guid NodeId { get; private set; }
 
@@ -26,41 +27,40 @@ namespace NBlockChain.Services
 
         public void RegisterBlockReceiver(IBlockReceiver blockReceiver)
         {
-            _blockRecievers.Add(blockReceiver);
+            _blockReciever = blockReceiver;
         }
 
         public void RegisterTransactionReceiver(ITransactionReceiver transactionReciever)
         {
-            _transactionRecievers.Add(transactionReciever);
+            _transactionReciever = transactionReciever;
         }
 
-        public void DeregisterBlockReceiver(IBlockReceiver blockReceiver)
+        public void DiscoverPeers()
         {
-            _blockRecievers.Remove(blockReceiver);
         }
 
-        public void DeregisterTransactionReceiver(ITransactionReceiver transactionReciever)
+        public void Open()
         {
-            _transactionRecievers.Remove(transactionReciever);
+        }
+
+        public void Close()
+        {
         }
 
         public Action<Guid, Block> ReceiveBlock => (peer, block) =>
         {
-            foreach (var recv in _blockRecievers)
-                recv.RecieveBlock(block);
+            _blockReciever.RecieveBlock(block);
         };
 
 
         public Action<Guid, Block> ReceiveTail => (peer, block) =>
         {
-            foreach (var recv in _blockRecievers)
-                recv.RecieveTail(block);
+            _blockReciever.RecieveTail(block);
         };
 
         public Action<Guid, TransactionEnvelope> ReceiveTransaction => (peer, txn) =>
         {
-            foreach (var recv in _transactionRecievers)
-                recv.RecieveTransaction(txn);
+            _transactionReciever.RecieveTransaction(txn);
         };
 
         public Action<Guid, byte[]> ReceiveBlockRequest => async (peer, txn) =>
@@ -73,31 +73,28 @@ namespace NBlockChain.Services
             var task = Task.Factory.StartNew(() => dest.ReceiveBlock(NodeId, block));
         };
 
-        public async Task BroadcastBlock(Block block)
+        public void BroadcastTail(Block block)
         {
             Parallel.ForEach(Peers.Where(x => x.NodeId != NodeId), peer =>
             {
                 var task = Task.Factory.StartNew(() => peer.ReceiveTail(NodeId, block));
             });
-            await Task.Yield();
         }
-
-        public async Task BroadcastTransaction(TransactionEnvelope transaction)
+        
+        public void BroadcastTransaction(TransactionEnvelope transaction)
         {
             Parallel.ForEach(Peers.Where(x => x.NodeId != NodeId), peer =>
             {
                 var task = Task.Factory.StartNew(() => peer.ReceiveTransaction(NodeId, transaction));
             });
-            await Task.Yield();
         }
 
-        public async Task RequestNextBlock(byte[] blockId)
+        public void RequestNextBlock(byte[] blockId)
         {
             Parallel.ForEach(Peers.Where(x => x.NodeId != NodeId).Take(2), peer =>
             {
                 var task = Task.Factory.StartNew(() => peer.ReceiveBlockRequest(NodeId, blockId));
             });
-            await Task.Yield();
         }
 
         public void Dispose()

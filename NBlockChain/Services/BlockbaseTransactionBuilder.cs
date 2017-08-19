@@ -30,7 +30,7 @@ namespace NBlockChain.Services
             result.Originator = _addressEncoder.EncodeAddress(builderKeys.PublicKey, 0);
             result.OriginKey = Guid.NewGuid();
             result.TransactionType = _transactionTypeMetadata.TypeId;
-            result.Transaction = JObject.FromObject(BuildBaseTransaction(transactions));
+            result.Transaction = BuildBaseTransaction(transactions);
 
             _signatureService.SignTransaction(result, builderKeys.PrivateKey);
 

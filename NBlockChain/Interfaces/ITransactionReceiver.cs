@@ -8,6 +8,6 @@ namespace NBlockChain.Interfaces
 {
     public interface ITransactionReceiver
     {
-        Task RecieveTransaction(TransactionEnvelope transaction);
+        Task<bool> RecieveTransaction(TransactionEnvelope transaction);
     }
 }

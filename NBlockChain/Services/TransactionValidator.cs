@@ -11,6 +11,7 @@ using Newtonsoft.Json.Linq;
 namespace NBlockChain.Services
 {
     public abstract class TransactionValidator<T> : ITransactionValidator
+        where T : class
     {
         public string TransactionType { get; }
 
@@ -22,8 +23,10 @@ namespace NBlockChain.Services
 
         public int Validate(TransactionEnvelope transaction)
         {
+            if (!(transaction is T))
+                return -5;
 
-            return Validate(transaction, transaction.Transaction.ToObject<T>());
+            return Validate(transaction, transaction.Transaction as T);
         }
 
         protected abstract int Validate(TransactionEnvelope envelope, T transaction);

@@ -17,6 +17,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 var db = client.GetDatabase(databaseName);
                 return new MongoBlockRepository(db);
             });
+
+            options.AddPeerDiscovery(sp =>
+            {
+                var client = new MongoClient(mongoUrl);
+                var db = client.GetDatabase(databaseName);
+                return new MongoPeerDirectory(db);
+            });
+
             return options;
         }
     }

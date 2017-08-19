@@ -86,8 +86,8 @@ namespace NBlockChain.Services
             {
                 if (block.Header.Status == BlockStatus.Confirmed)
                 {
-                    var task1 = _receiver.RecieveTail(block);
-                    var task2 = _peerNetwork.BroadcastBlock(block);
+                    await _receiver.RecieveTail(block);
+                    _peerNetwork.BroadcastTail(block);
                 }
             }
         }

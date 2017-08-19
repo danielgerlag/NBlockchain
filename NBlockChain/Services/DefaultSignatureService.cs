@@ -87,7 +87,7 @@ namespace NBlockChain.Services
 
         private byte[] ExtractSignableElements(TransactionEnvelope txn)
         {
-            var txnStr = txn.Transaction.ToString(Formatting.None);
+            var txnStr = JsonConvert.SerializeObject(txn.Transaction, Formatting.None);
 
             var result = txn.OriginKey.ToByteArray()
                 .Concat(Encoding.Unicode.GetBytes(txn.Originator))

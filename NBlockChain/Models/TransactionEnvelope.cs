@@ -15,7 +15,7 @@ namespace NBlockChain.Models
 
         public byte[] Signature { get; set; }
 
-        public JObject Transaction { get; set; }
+        public object Transaction { get; set; }
 
         public TransactionEnvelope()
         {
@@ -23,7 +23,7 @@ namespace NBlockChain.Models
 
         public TransactionEnvelope(object transaction)
         {
-            Transaction = JObject.FromObject(transaction);
+            Transaction = transaction;
         }
 
     }

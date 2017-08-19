@@ -21,7 +21,7 @@ namespace NBlockChain.Services
 
         public byte[] ResolveKey(TransactionEnvelope txn)
         {
-            var txnStr = txn.Transaction.ToString(Formatting.None);
+            var txnStr = JsonConvert.SerializeObject(txn.Transaction, Formatting.None);
 
             var seed = txn.OriginKey.ToByteArray()
                 .Concat(Encoding.Unicode.GetBytes(txn.Originator))

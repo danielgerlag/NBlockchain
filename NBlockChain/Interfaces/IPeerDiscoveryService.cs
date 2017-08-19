@@ -6,10 +6,11 @@ using NBlockChain.Models;
 
 namespace NBlockChain.Interfaces
 {
-    public interface IBlockReceiver
+    public interface IPeerDiscoveryService
     {
-        Task<bool> RecieveBlock(Block block);
+        Task<ICollection<PeerNode>> DiscoverPeers();
 
-        Task<bool> RecieveTail(Block block);
+        Task SharePeers(ICollection<PeerNode> peers);
+
     }
 }
