@@ -4,9 +4,8 @@ using System.Text;
 
 namespace NBlockChain.Models
 {
-    public class PeerNode
+    public class KnownPeer
     {
-        public Guid NodeId { get; set; }
         public string ConnectionString { get; set; }
         public DateTime LastContact { get; set; }
 

@@ -54,7 +54,8 @@ namespace NBlockChain.Services
 
             foreach (var txn in block.Transactions)
             {
-                if (VerifyTransaction(txn) != 0)
+                var siblings = block.Transactions.Where(x => x != txn).ToList();
+                if (VerifyTransaction(txn, siblings) != 0)
                     return false;
             }
 
@@ -71,7 +72,7 @@ namespace NBlockChain.Services
             return (ratio >= _parameters.ExpectedContentThreshold);
         }
 
-        public int VerifyTransaction(TransactionEnvelope transaction)
+        public int VerifyTransaction(TransactionEnvelope transaction, ICollection<TransactionEnvelope> siblings)
         {
             var result = 0;
 
@@ -85,7 +86,7 @@ namespace NBlockChain.Services
                 return -3;
 
             foreach (var validator in _txnValidators.Where(v => v.TransactionType == transaction.TransactionType))
-                result = result & validator.Validate(transaction);
+                result = result & validator.Validate(transaction, siblings);
 
             return result;
         }

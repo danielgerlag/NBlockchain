@@ -18,15 +18,15 @@ namespace NBlockChain.Services.PeerDiscovery
             _key = key;
         }
 
-        public Task<ICollection<PeerNode>> DiscoverPeers()
+        public Task<ICollection<KnownPeer>> DiscoverPeers()
         {
-            ICollection<PeerNode> result = new HashSet<PeerNode>();
+            ICollection<KnownPeer> result = new HashSet<KnownPeer>();
             if (_peerStr != string.Empty)
-                result.Add(new PeerNode() { ConnectionString = _peerStr });
+                result.Add(new KnownPeer() { ConnectionString = _peerStr });
             return Task.FromResult(result);
         }
 
-        public async Task SharePeers(ICollection<PeerNode> peers)
+        public async Task SharePeers(ICollection<KnownPeer> peers)
         {
             await Task.Yield();
         }

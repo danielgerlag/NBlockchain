@@ -27,8 +27,9 @@ namespace NBlockChain.Services
         private readonly IEnumerable<IPeerDiscoveryService> _discoveryServices;
         private readonly ILogger _logger;
 
-        private readonly ConcurrentDictionary<Guid, PeerNode> _knownPeers = new ConcurrentDictionary<Guid, PeerNode>();
-
+        private readonly ConcurrentQueue<KnownPeer> _peerRoundRobin = new ConcurrentQueue<KnownPeer>();
+        private readonly ConcurrentDictionary<string, Guid> _outgoingConnectionStrings = new ConcurrentDictionary<string, Guid>();
+        private readonly ConcurrentDictionary<Guid, NetMQSocket> _outgoingSockets = new ConcurrentDictionary<Guid, NetMQSocket>();
         private readonly ConcurrentDictionary<Guid, DateTime> _incomingPeerLastContact = new ConcurrentDictionary<Guid, DateTime>();
 
         private Timer _sharePeersTimer;
@@ -37,7 +38,7 @@ namespace NBlockChain.Services
         private readonly NetMQPoller _poller = new NetMQPoller();
         private NetMQTimer _houseKeeper;
 
-        private readonly ConcurrentDictionary<Guid, NetMQSocket> _outgoingSockets = new ConcurrentDictionary<Guid, NetMQSocket>();
+        
 
         public Guid NodeId { get; private set; }
 
@@ -57,7 +58,7 @@ namespace NBlockChain.Services
             try
             {
                 var message = e.Socket.ReceiveMultipartMessage();
-
+                
                 if (message.FrameCount > 1)
                 {
                     var clientId = new Guid(message[0].Buffer);
@@ -83,7 +84,8 @@ namespace NBlockChain.Services
                             _logger.LogDebug("Recv connect from {0}", clientId);
                             _incomingSocket.SendMoreFrame(message[0].Buffer)
                                 .SendMoreFrame(NodeId.ToByteArray())
-                                .SendFrame(ConvertOp(MessageOp.Identify));
+                                .SendMoreFrame(ConvertOp(MessageOp.Identify))
+                                .SendFrame(message[2].Buffer);
                             break;
 
                         case MessageOp.Disconnect:
@@ -127,6 +129,7 @@ namespace NBlockChain.Services
                         case MessageOp.Identify:
                             _logger.LogDebug("Recv identify from {0}", serverId);
                             _outgoingSockets[serverId] = e.Socket;
+                            _outgoingConnectionStrings[message[2].ConvertToString()] = serverId;
                             break;
 
                         case MessageOp.Disconnect:
@@ -164,13 +167,13 @@ namespace NBlockChain.Services
             _logger.LogDebug($"Processing block {tail}");
             var hopCount = message[2].ConvertToInt32();
             var block = DeserializeObject<Block>(message[3].Buffer);
-            var result = false;
+            var result = PeerDataResult.Ignore;
             if (tail)
                 result = await _blockReciever.RecieveTail(block);
             else
                 result = await _blockReciever.RecieveBlock(block);
 
-            if ((tail) && (result) && (hopCount > -1))
+            if ((tail) && (result == PeerDataResult.Relay) && (hopCount > -1))
             {
                 var incomingTask = Task.Factory.StartNew(() =>
                 {
@@ -198,7 +201,7 @@ namespace NBlockChain.Services
             var txn = DeserializeObject<TransactionEnvelope>(message[3].Buffer);
             var result = await _transactionReciever.RecieveTransaction(txn);
 
-            if ((result) && (hopCount > -1))
+            if ((result == PeerDataResult.Relay) && (hopCount > -1))
             {
                 var incomingTask = Task.Factory.StartNew(() =>
                 {
@@ -240,7 +243,8 @@ namespace NBlockChain.Services
             peer.Connect(connStr);
             _poller.Add(peer);
             //_outgoingSockets[]
-            peer.SendFrame(ConvertOp(MessageOp.Connect));
+            peer.SendMoreFrame(ConvertOp(MessageOp.Connect))
+                .SendFrame(connStr);
         }
 
         public void Close()
@@ -278,7 +282,10 @@ namespace NBlockChain.Services
                 {
                     var newPeers = await discovery.DiscoverPeers();
                     foreach (var np in newPeers)
-                        _knownPeers[np.NodeId] = np;
+                    {
+                        if (!_peerRoundRobin.Any(x => x.ConnectionString == np.ConnectionString))
+                            _peerRoundRobin.Enqueue(np);
+                    }
 
                     ConnectOut();
                 });
@@ -288,7 +295,7 @@ namespace NBlockChain.Services
         private async void SharePeers(object state)
         {
             foreach (var ds in _discoveryServices)
-                await ds.SharePeers(_knownPeers.Values);
+                await ds.SharePeers(_peerRoundRobin.ToList());
 
             //
         }
@@ -306,16 +313,23 @@ namespace NBlockChain.Services
                 return;
 
             var actual = 0;
-            foreach (var kp in _knownPeers)
-            {
-                if (_outgoingSockets.ContainsKey(kp.Key))
-                    continue;
+            var counter = 0;
 
-                _logger.LogDebug($"Connecting to {kp.Value.ConnectionString}");
-                OnboardPeer(kp.Value.ConnectionString);
-                actual++;
-                if (actual >= target)
-                    return;
+            while ((actual < target) && (counter < _peerRoundRobin.Count))
+            {
+                if (_peerRoundRobin.TryDequeue(out var kp))
+                {
+                    _peerRoundRobin.Enqueue(kp);
+                    counter++;
+                    if (_outgoingConnectionStrings.ContainsKey(kp.ConnectionString))
+                    {
+                        if (_outgoingSockets.ContainsKey(_outgoingConnectionStrings[kp.ConnectionString]))
+                            continue;
+                    }
+                    _logger.LogDebug($"Connecting to {kp.ConnectionString}");
+                    OnboardPeer(kp.ConnectionString);
+                    actual++;
+                }                
             }
         }
 

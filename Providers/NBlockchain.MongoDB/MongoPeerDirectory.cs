@@ -29,14 +29,14 @@ namespace NBlockchain.MongoDB
         private IMongoCollection<MongoPeerNode> Peers => _database.GetCollection<MongoPeerNode>("nbc.peers");
 
         
-        public async Task<ICollection<PeerNode>> DiscoverPeers()
+        public async Task<ICollection<KnownPeer>> DiscoverPeers()
         {
             var query = await Peers.FindAsync(x => true);
             var raw = await query.ToListAsync();
-            return raw.Cast<PeerNode>().ToList();
+            return raw.Cast<KnownPeer>().ToList();
         }
 
-        public async Task SharePeers(ICollection<PeerNode> peers)
+        public async Task SharePeers(ICollection<KnownPeer> peers)
         {
             foreach (var peer in peers)
             {
@@ -64,7 +64,7 @@ namespace NBlockchain.MongoDB
         }
     }
 
-    public class MongoPeerNode : PeerNode
+    public class MongoPeerNode : KnownPeer
     {
         public ObjectId Id { get; set; }
 
@@ -72,11 +72,10 @@ namespace NBlockchain.MongoDB
         {
         }
 
-        public MongoPeerNode(PeerNode node)
+        public MongoPeerNode(KnownPeer node)
         {
             this.ConnectionString = node.ConnectionString;
             this.LastContact = node.LastContact;
-            this.NodeId = node.NodeId;
         }
     }
 }

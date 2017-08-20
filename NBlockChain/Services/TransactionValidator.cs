@@ -21,14 +21,14 @@ namespace NBlockChain.Services
             TransactionType = attr.TypeId;
         }
 
-        public int Validate(TransactionEnvelope transaction)
+        public int Validate(TransactionEnvelope transaction, ICollection<TransactionEnvelope> siblings)
         {
             if (!(transaction is T))
                 return -5;
 
-            return Validate(transaction, transaction.Transaction as T);
+            return Validate(transaction, transaction.Transaction as T, siblings);
         }
 
-        protected abstract int Validate(TransactionEnvelope envelope, T transaction);
+        protected abstract int Validate(TransactionEnvelope envelope, T transaction, ICollection<TransactionEnvelope> siblings);
     }
 }

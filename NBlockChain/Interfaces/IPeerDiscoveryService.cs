@@ -8,9 +8,9 @@ namespace NBlockChain.Interfaces
 {
     public interface IPeerDiscoveryService
     {
-        Task<ICollection<PeerNode>> DiscoverPeers();
+        Task<ICollection<KnownPeer>> DiscoverPeers();
 
-        Task SharePeers(ICollection<PeerNode> peers);
+        Task SharePeers(ICollection<KnownPeer> peers);
 
     }
 }

@@ -9,6 +9,6 @@ namespace NBlockChain.Interfaces
 
         bool VerifyContentThreshold(ICollection<byte[]> actual, ICollection<byte[]> expected);
 
-        int VerifyTransaction(TransactionEnvelope transaction);
+        int VerifyTransaction(TransactionEnvelope transaction, ICollection<TransactionEnvelope> siblings);
     }
 }
