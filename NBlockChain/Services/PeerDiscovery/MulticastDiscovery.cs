@@ -48,6 +48,7 @@ namespace NBlockChain.Services.PeerDiscovery
             {
                 try
                 {
+                    _logger.LogDebug($"Advertising {connectionString}");
                     Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
                     IPAddress ip = IPAddress.Parse(_multicastAddress);
                     s.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(ip));
@@ -71,6 +72,7 @@ namespace NBlockChain.Services.PeerDiscovery
 
         public async Task<ICollection<KnownPeer>> DiscoverPeers()
         {
+            _logger.LogDebug("Discovering peers");
             var result = new HashSet<KnownPeer>();
 
             Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
@@ -79,7 +81,9 @@ namespace NBlockChain.Services.PeerDiscovery
             Policy.Handle<SocketException>()
                 .WaitAndRetry((new[] { _interval, _interval }))
                 .Execute(() => s.Bind(ipep));
-                
+
+            _logger.LogDebug($"Bound port {_port}");
+
             IPAddress ip = IPAddress.Parse(_multicastAddress);
             s.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(ip, IPAddress.Any));
             s.ReceiveTimeout = _interval.Milliseconds + 1000;
@@ -92,6 +96,7 @@ namespace NBlockChain.Services.PeerDiscovery
                 {
                     int size = s.Receive(b);
                     string message = Encoding.ASCII.GetString(b, 0, size);
+                    _logger.LogDebug($"rx message {message}");
                     if (message.StartsWith(_serviceId))
                     {
                         var connStr = message.Remove(0, _serviceId.Length);
@@ -102,8 +107,9 @@ namespace NBlockChain.Services.PeerDiscovery
                         });
                     }
                 }
-                catch (SocketException)
+                catch (SocketException ex)
                 {
+                    _logger.LogDebug(ex.Message);
                     return result;
                 }
                 catch (Exception ex)

@@ -14,25 +14,25 @@ namespace ScratchPad
     {
         static void Main(string[] args)
         {
-            IServiceProvider miner1 = ConfigureNode("miner1", 500, "", Guid.NewGuid(), false);
+            //IServiceProvider miner1 = ConfigureNode("miner1", 500, "", Guid.NewGuid(), true);
             //IServiceProvider miner2 = ConfigureNode("miner2", 501, "tcp://localhost:500", true);
             IServiceProvider node1;// = ConfigureNode("node1", true);
 
-            Console.WriteLine("starting miner");
-            RunMiner(miner1, true);
+            //Console.WriteLine("starting miner");
+            //RunMiner(miner1, true);
 
-            var miner1Net = miner1.GetService<IPeerNetwork>();
-            
+            //var miner1Net = miner1.GetService<IPeerNetwork>();
+
             //RunMiner(miner2, false);
 
             Task.Factory.StartNew(async () =>
             {
-                await Task.Delay(5000);
+                //await Task.Delay(5000);
                 Console.WriteLine("starting node");
-                node1 = ConfigureNode("node1", 502, "tcp://localhost:500", miner1Net.NodeId, true);
+                node1 = ConfigureNode("node1", 502, "tcp://localhost:500", true);
                 await RunNode(node1, true);
             });
-            
+
 
             //RunNode(node1, true);
             //var block = blockBuilder.BuildBlock(new byte[0], minerKeys).Result;
@@ -112,7 +112,7 @@ namespace ScratchPad
             }
         }
 
-        private static IServiceProvider ConfigureNode(string db, uint port, string peerStr, Guid peerKey, bool logging)
+        private static IServiceProvider ConfigureNode(string db, uint port, string peerStr, bool logging)
         {
             //setup dependency injection
             IServiceCollection services = new ServiceCollection();
