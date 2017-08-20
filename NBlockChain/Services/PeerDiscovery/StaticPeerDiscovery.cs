@@ -18,6 +18,14 @@ namespace NBlockChain.Services.PeerDiscovery
             _key = key;
         }
 
+        public async Task AdvertiseGlobal(string connectionString)
+        {            
+        }
+
+        public async Task AdvertiseLocal(string connectionString)
+        {
+        }
+
         public Task<ICollection<KnownPeer>> DiscoverPeers()
         {
             ICollection<KnownPeer> result = new HashSet<KnownPeer>();

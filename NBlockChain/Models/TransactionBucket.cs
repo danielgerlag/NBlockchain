@@ -73,7 +73,7 @@ namespace NBlockChain.Models
             _resetEvent.WaitOne();
             try
             {
-                if (_buckets[height] != null)
+                if (_buckets.ContainsKey(height))
                 {
                     return _txns.Where(x => _buckets[height].Contains(x.Key, _byteArrayEqualityComparer))
                         .Select(x => x.Value)

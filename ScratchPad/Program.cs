@@ -120,7 +120,8 @@ namespace ScratchPad
             {
                 x.UseMongoDB(@"mongodb://localhost:27017", db);
                 x.UseTcpPeerNetwork(port);
-                x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peerStr, peerKey));
+                //x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peerStr, peerKey));
+                x.UseMulticastDiscovery("test", "224.5.6.7", 4567);
                 x.AddTransactionType<TestTransaction>();
                 x.AddValidator<TestTransactionValidator>();
                 x.UseBlockbaseProvider<TestBlockbaseBuilder>();

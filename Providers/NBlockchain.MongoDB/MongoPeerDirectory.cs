@@ -40,15 +40,15 @@ namespace NBlockchain.MongoDB
         {
             foreach (var peer in peers)
             {
-                var query = await Peers.FindAsync(x => x.ConnectionString == peer.ConnectionString);
-                if (await query.AnyAsync())
+                var query = Peers.Find(x => x.ConnectionString == peer.ConnectionString);
+                if (query.Any())
                 {
-                    var existing = await query.FirstAsync();
-                    await Peers.ReplaceOneAsync(x => x.Id == existing.Id, new MongoPeerNode(peer));
+                    var existing = query.First();
+                    Peers.ReplaceOne(x => x.Id == existing.Id, new MongoPeerNode(peer));
                 }
                 else
                 {
-                    await Peers.InsertOneAsync(new MongoPeerNode(peer));
+                    Peers.InsertOne(new MongoPeerNode(peer));
                 }
             }
         }
@@ -61,6 +61,14 @@ namespace NBlockchain.MongoDB
                 //TODO
                 indexesCreated = true;
             }
+        }
+
+        public async Task AdvertiseGlobal(string connectionString)
+        {         
+        }
+
+        public async Task AdvertiseLocal(string connectionString)
+        {
         }
     }
 

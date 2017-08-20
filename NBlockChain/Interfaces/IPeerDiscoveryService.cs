@@ -10,6 +10,10 @@ namespace NBlockChain.Interfaces
     {
         Task<ICollection<KnownPeer>> DiscoverPeers();
 
+        Task AdvertiseGlobal(string connectionString);
+
+        Task AdvertiseLocal(string connectionString);
+
         Task SharePeers(ICollection<KnownPeer> peers);
 
     }

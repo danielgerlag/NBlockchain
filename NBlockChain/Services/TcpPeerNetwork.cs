@@ -12,6 +12,8 @@ using NetMQ;
 using NetMQ.Sockets;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Bson;
+using System.Net.Sockets;
+using System.Net;
 
 namespace NBlockChain.Services
 {
@@ -37,8 +39,9 @@ namespace NBlockChain.Services
         private readonly RouterSocket _incomingSocket = new RouterSocket();
         private readonly NetMQPoller _poller = new NetMQPoller();
         private NetMQTimer _houseKeeper;
+        private string _internalConnsctionString;
+        private string _externalConnsctionString;
 
-        
 
         public Guid NodeId { get; private set; }
 
@@ -233,6 +236,8 @@ namespace NBlockChain.Services
             _poller.Add(_houseKeeper);
             _houseKeeper.Enable = true;
             DiscoverPeers();
+            DiscoverOwnConnectionStrings();
+            AdvertiseToPeers();
         }
 
         private void OnboardPeer(string connStr)
@@ -493,6 +498,37 @@ namespace NBlockChain.Services
         private ICollection<Guid> GetOutgoingPeers()
         {
             return _outgoingSockets.Keys;
+        }
+
+        private void AdvertiseToPeers()
+        {
+            foreach (var ds in _discoveryServices)
+                Task.Factory.StartNew(() => 
+                {
+                    if (_internalConnsctionString != null)
+                        ds.AdvertiseLocal(_internalConnsctionString);
+
+                    if (_externalConnsctionString != null)
+                        ds.AdvertiseGlobal(_externalConnsctionString);
+                });
+        }
+
+        private void DiscoverOwnConnectionStrings()
+        {
+            try
+            {
+                using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
+                {
+                    socket.Connect("8.8.8.8", 65530);
+                    IPEndPoint endPoint = socket.LocalEndPoint as IPEndPoint;
+                    _internalConnsctionString = endPoint.Address.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+            }
+            //TODO: external addresses
         }
 
         private static byte[] SerializeObject(object data)

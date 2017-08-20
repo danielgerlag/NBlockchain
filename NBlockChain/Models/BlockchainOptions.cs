@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using NBlockChain.Interfaces;
 using NBlockChain.Services;
 using NBlockChain.Services.Hashers;
+using NBlockChain.Services.PeerDiscovery;
 
 namespace NBlockChain.Models
 {
@@ -93,6 +94,11 @@ namespace NBlockChain.Models
         public void AddPeerDiscovery(Func<IServiceProvider, IPeerDiscoveryService> factory)
         {
             _services.AddTransient<IPeerDiscoveryService>(factory);
+        }
+
+        public void UseMulticastDiscovery(string serviceId, string multicastAddress, int port)
+        {
+            _services.AddTransient<IPeerDiscoveryService>(sp => new MulticastDiscovery(serviceId, multicastAddress, port, sp.GetService<ILoggerFactory>()));
         }
 
         public void AddTransactionType<T>()

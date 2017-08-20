@@ -18,7 +18,7 @@ namespace NBlockchain.MongoDB
     public class MongoBlockRepository : IBlockRepository
     {
         private readonly IMongoDatabase _database;
-        private readonly AutoResetEvent _cursorEvent = new AutoResetEvent(true);
+        //private readonly AutoResetEvent _cursorEvent = new AutoResetEvent(true);
 
         public MongoBlockRepository(IMongoDatabase database)
         {
@@ -46,91 +46,43 @@ namespace NBlockchain.MongoDB
         private IMongoCollection<MongoBlock> Blocks => _database.GetCollection<MongoBlock>("nbc.blocks");
 
         public async Task AddBlock(Block block)
-        {
-            _cursorEvent.WaitOne();
-            try
-            {
-                Blocks.InsertOne(new MongoBlock(block));
-            }
-            finally
-            {
-                _cursorEvent.Set();
-            }
+        {            
+            Blocks.InsertOne(new MongoBlock(block));            
         }
 
         public async Task<bool> HaveBlock(byte[] blockId)
-        {
-            _cursorEvent.WaitOne();
-            try
-            {
-                var query = Blocks.Find(x => x.Header.BlockId == blockId);
-                return query.Any();
-            }
-            finally
-            {
-                _cursorEvent.Set();
-            }
+        {            
+            var query = Blocks.Find(x => x.Header.BlockId == blockId);
+            return query.Any();
         }
 
         public async Task<bool> IsEmpty()
         {
-            _cursorEvent.WaitOne();
-            try
-            {
-                return (Blocks.Count(x => true) == 0);
-            }
-            finally
-            {
-                _cursorEvent.Set();
-            }
+            return (Blocks.Count(x => true) == 0);
         }
 
         public async Task<BlockHeader> GetNewestBlockHeader()
         {
-            _cursorEvent.WaitOne();
-            try
-            {
-                if (Blocks.Count(x => true) == 0)
-                    return null;
+            if (Blocks.Count(x => true) == 0)
+                return null;
 
-                var height = Blocks.AsQueryable().Max(x => x.Header.Height);
-                var query = Blocks.AsQueryable().Select(x => x.Header).Where(x => x.Height == height);
-                return query.FirstOrDefault();
-            }
-            finally
-            {
-                _cursorEvent.Set();
-            }
+            var height = Blocks.AsQueryable().Max(x => x.Header.Height);
+            var query = Blocks.AsQueryable().Select(x => x.Header).Where(x => x.Height == height);
+            return query.FirstOrDefault();
         }
 
         public async Task<Block> GetNextBlock(byte[] prevBlockId)
         {
-            _cursorEvent.WaitOne();
-            try
-            {
-                var query = Blocks.Find(x => x.Header.PreviousBlock == prevBlockId);
-                return query.FirstOrDefault();
-            }
-            finally
-            {
-                _cursorEvent.Set();
-            }
+            var query = Blocks.Find(x => x.Header.PreviousBlock == prevBlockId);
+            return query.FirstOrDefault();
         }
 
         public async Task<long> GetGenesisBlockTime()
         {
-            _cursorEvent.WaitOne();
-            try
-            {
-                if (Blocks.Count(x => true) == 0)
-                    return DateTime.UtcNow.Ticks;
+            if (Blocks.Count(x => true) == 0)
+                return DateTime.UtcNow.Ticks;
 
-                return Blocks.AsQueryable().Min(x => x.Header.Timestamp);
-            }
-            finally
-            {
-                _cursorEvent.Set();
-            }
+            return Blocks.AsQueryable().Min(x => x.Header.Timestamp);
         }
 
         static bool indexesCreated = false;
