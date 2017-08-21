@@ -86,11 +86,11 @@ namespace NBlockChain.Services.PeerDiscovery
                 udpClient.JoinMulticastGroup(IPAddress.Parse(_multicastAddress), localEndPoint.Address);
             }
             
-            udpClient.Client.ReceiveTimeout = _interval.Milliseconds + 1000;
+            udpClient.Client.ReceiveTimeout = Convert.ToInt32(_interval.TotalMilliseconds + 1000);
 
             DateTime pollUntil = DateTime.Now.Add(_interval);
 
-            while (pollUntil < DateTime.Now)
+            while (pollUntil > DateTime.Now)
             {
                 byte[] b = new byte[1024];
                 try
@@ -111,8 +111,7 @@ namespace NBlockChain.Services.PeerDiscovery
                 }
                 catch (SocketException ex)
                 {
-                    _logger.LogDebug(ex.Message);
-                    return result;
+                    _logger.LogDebug(ex.Message);                    
                 }
                 catch (Exception ex)
                 {

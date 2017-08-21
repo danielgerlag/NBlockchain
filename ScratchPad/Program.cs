@@ -14,12 +14,12 @@ namespace ScratchPad
     {
         static void Main(string[] args)
         {
-            IServiceProvider miner1 = ConfigureNode("miner1", 500, "", true);
+            //IServiceProvider miner1 = ConfigureNode("miner1", 500, "", true);
             //IServiceProvider miner2 = ConfigureNode("miner2", 501, "tcp://localhost:500", true);
             IServiceProvider node1;// = ConfigureNode("node1", true);
 
-            Console.WriteLine("starting miner");
-            RunMiner(miner1, true);
+            //Console.WriteLine("starting miner");
+            //RunMiner(miner1, true);
 
             //var miner1Net = miner1.GetService<IPeerNetwork>();
 
@@ -27,7 +27,7 @@ namespace ScratchPad
 
             Task.Factory.StartNew(async () =>
             {
-                await Task.Delay(5000);
+                //await Task.Delay(5000);
                 Console.WriteLine("starting node");
                 node1 = ConfigureNode("node1", 502, "tcp://localhost:500", true);
                 await RunNode(node1, true);
@@ -121,7 +121,7 @@ namespace ScratchPad
                 x.UseMongoDB(@"mongodb://localhost:27017", db);
                 x.UseTcpPeerNetwork(port);
                 //x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peerStr, peerKey));
-                x.UseMulticastDiscovery("test", "224.5.6.7", 4567);
+                x.UseMulticastDiscovery("test", "224.100.0.1", 8088);
                 x.AddTransactionType<TestTransaction>();
                 x.AddValidator<TestTransactionValidator>();
                 x.UseBlockbaseProvider<TestBlockbaseBuilder>();
