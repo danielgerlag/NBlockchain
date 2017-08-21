@@ -48,19 +48,22 @@ namespace NBlockChain.Services.PeerDiscovery
             {
                 try
                 {
-                    _logger.LogDebug($"Advertising {connectionString}");
-                    Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                    IPAddress ip = IPAddress.Parse(_multicastAddress);
-                    s.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(ip));
-                    s.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastTimeToLive, 2);
-                    IPEndPoint ipep = new IPEndPoint(ip, _port);
-                    s.Connect(ipep);
-
-                    while (!_advertiseCts.IsCancellationRequested)
+                    var dataStr = _serviceId + connectionString;
+                    var data = Encoding.ASCII.GetBytes(dataStr);
+                    using (var udpClient = new UdpClient(AddressFamily.InterNetwork))
                     {
-                        var dataStr = _serviceId + connectionString;
-                        s.Send(Encoding.ASCII.GetBytes(dataStr));
-                        await Task.Delay(_interval);
+                        var address = IPAddress.Parse(_multicastAddress);
+                        var ipEndPoint = new IPEndPoint(address, _port);
+                        udpClient.JoinMulticastGroup(address);
+
+                        while (!_advertiseCts.IsCancellationRequested)
+                        {
+                            _logger.LogDebug($"Advertising {connectionString}");
+                            udpClient.Send(data, data.Length, ipEndPoint);
+                            await Task.Delay(_interval);
+                        }
+
+                        udpClient.Close();
                     }
                 }
                 catch (Exception ex)
@@ -74,28 +77,27 @@ namespace NBlockChain.Services.PeerDiscovery
         {
             _logger.LogDebug("Discovering peers");
             var result = new HashSet<KnownPeer>();
+            var udpClient = new UdpClient(_port);
 
-            Socket s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            IPEndPoint ipep = new IPEndPoint(IPAddress.Any, _port);
+            using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
+            {
+                socket.Connect("8.8.8.8", 65530);
+                var localEndPoint = (socket.LocalEndPoint as IPEndPoint);
+                udpClient.JoinMulticastGroup(IPAddress.Parse(_multicastAddress), localEndPoint.Address);
+            }
+            
+            udpClient.Client.ReceiveTimeout = _interval.Milliseconds + 1000;
 
-            Policy.Handle<SocketException>()
-                .WaitAndRetry((new[] { _interval, _interval }))
-                .Execute(() => s.Bind(ipep));
-
-            _logger.LogDebug($"Bound port {_port}");
-
-            IPAddress ip = IPAddress.Parse(_multicastAddress);
-            s.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(ip, IPAddress.Any));
-            s.ReceiveTimeout = _interval.Milliseconds + 1000;
             DateTime pollUntil = DateTime.Now.Add(_interval);
 
-            while (pollUntil > DateTime.Now)
+            while (pollUntil < DateTime.Now)
             {
                 byte[] b = new byte[1024];
                 try
                 {
-                    int size = s.Receive(b);
-                    string message = Encoding.ASCII.GetString(b, 0, size);
+                    var ipEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                    var data = udpClient.Receive(ref ipEndPoint);                    
+                    string message = Encoding.ASCII.GetString(data);
                     _logger.LogDebug($"rx message {message}");
                     if (message.StartsWith(_serviceId))
                     {
@@ -117,7 +119,6 @@ namespace NBlockChain.Services.PeerDiscovery
                     _logger.LogError(ex.Message);
                 }
             }
-            s.Close();
 
             return result;
         }

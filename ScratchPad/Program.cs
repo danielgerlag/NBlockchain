@@ -14,12 +14,12 @@ namespace ScratchPad
     {
         static void Main(string[] args)
         {
-            //IServiceProvider miner1 = ConfigureNode("miner1", 500, "", Guid.NewGuid(), true);
+            IServiceProvider miner1 = ConfigureNode("miner1", 500, "", true);
             //IServiceProvider miner2 = ConfigureNode("miner2", 501, "tcp://localhost:500", true);
             IServiceProvider node1;// = ConfigureNode("node1", true);
 
-            //Console.WriteLine("starting miner");
-            //RunMiner(miner1, true);
+            Console.WriteLine("starting miner");
+            RunMiner(miner1, true);
 
             //var miner1Net = miner1.GetService<IPeerNetwork>();
 
@@ -27,7 +27,7 @@ namespace ScratchPad
 
             Task.Factory.StartNew(async () =>
             {
-                //await Task.Delay(5000);
+                await Task.Delay(5000);
                 Console.WriteLine("starting node");
                 node1 = ConfigureNode("node1", 502, "tcp://localhost:500", true);
                 await RunNode(node1, true);

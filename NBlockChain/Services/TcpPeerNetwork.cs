@@ -521,7 +521,7 @@ namespace NBlockChain.Services
                 {
                     socket.Connect("8.8.8.8", 65530);
                     IPEndPoint endPoint = socket.LocalEndPoint as IPEndPoint;
-                    _internalConnsctionString = endPoint.Address.ToString();
+                    _internalConnsctionString = $"tcp://{endPoint.Address.ToString()}:{_port}";
                 }
             }
             catch (Exception ex)
