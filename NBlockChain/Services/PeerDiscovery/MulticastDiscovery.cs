@@ -76,7 +76,7 @@ namespace NBlockChain.Services.PeerDiscovery
         public async Task<ICollection<KnownPeer>> DiscoverPeers()
         {
             _logger.LogDebug("Discovering peers");
-            var result = new HashSet<KnownPeer>();
+            var result = new HashSet<KnownPeer>();            
             var udpClient = new UdpClient(_port);
 
             using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))

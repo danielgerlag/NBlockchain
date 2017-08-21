@@ -285,14 +285,21 @@ namespace NBlockChain.Services
             {
                 Task.Factory.StartNew(async () =>
                 {
-                    var newPeers = await discovery.DiscoverPeers();
-                    foreach (var np in newPeers)
+                    try
                     {
-                        if (!_peerRoundRobin.Any(x => x.ConnectionString == np.ConnectionString))
-                            _peerRoundRobin.Enqueue(np);
-                    }
+                        var newPeers = await discovery.DiscoverPeers();
+                        foreach (var np in newPeers)
+                        {
+                            if (!_peerRoundRobin.Any(x => x.ConnectionString == np.ConnectionString))
+                                _peerRoundRobin.Enqueue(np);
+                        }
 
-                    ConnectOut();
+                        ConnectOut();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex.Message);
+                    }
                 });
             }
         }
