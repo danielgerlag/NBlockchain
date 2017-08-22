@@ -82,7 +82,10 @@ namespace NBlockChain.Services
                         case MessageOp.BlockRequest:
                             await ProcessBlockRequest(message, e.Socket, clientId);
                             break;
-
+                        case MessageOp.PeerShare:
+                            if (IsSharablePeer(message[2].ConvertToString()))
+                                AddPeer(new KnownPeer() { ConnectionString = message[2].ConvertToString() });
+                            break;
                         case MessageOp.Connect:
                             _logger.LogDebug("Recv connect from {0}", clientId);
                             _incomingSocket.SendMoreFrame(message[0].Buffer)
@@ -128,11 +131,18 @@ namespace NBlockChain.Services
                         case MessageOp.BlockRequest:
                             await ProcessBlockRequest(message, e.Socket, null);
                             break;
+                        case MessageOp.PeerShare:
+                            if (IsSharablePeer(message[2].ConvertToString()))
+                                AddPeer(new KnownPeer() { ConnectionString = message[2].ConvertToString() });
+                            break;
 
                         case MessageOp.Identify:
                             _logger.LogDebug("Recv identify from {0}", serverId);
                             _outgoingSockets[serverId] = e.Socket;
-                            _outgoingConnectionStrings[message[2].ConvertToString()] = serverId;
+                            var peerConStr = message[2].ConvertToString();
+                            _outgoingConnectionStrings[peerConStr] = serverId;
+                            foreach (var prr in _peerRoundRobin.Where(x => x.ConnectionString == peerConStr).ToList())
+                                prr.LastContact = DateTime.Now;
                             break;
 
                         case MessageOp.Disconnect:
@@ -242,14 +252,20 @@ namespace NBlockChain.Services
 
         private void OnboardPeer(string connStr)
         {
-            var peer = new DealerSocket();
-            peer.Options.Identity = NodeId.ToByteArray();
-            peer.ReceiveReady += Peer_ReceiveReady;
-            peer.Connect(connStr);
-            _poller.Add(peer);
-            //_outgoingSockets[]
-            peer.SendMoreFrame(ConvertOp(MessageOp.Connect))
-                .SendFrame(connStr);
+            try
+            {
+                var peer = new DealerSocket();
+                peer.Options.Identity = NodeId.ToByteArray();
+                peer.ReceiveReady += Peer_ReceiveReady;
+                peer.Connect(connStr);
+                _poller.Add(peer);
+                peer.SendMoreFrame(ConvertOp(MessageOp.Connect))
+                    .SendFrame(connStr);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error connecting to {connStr} - {ex.Message}");
+            }
         }
 
         public void Close()
@@ -289,11 +305,7 @@ namespace NBlockChain.Services
                     {
                         var newPeers = await discovery.DiscoverPeers();
                         foreach (var np in newPeers)
-                        {
-                            if (!_peerRoundRobin.Any(x => x.ConnectionString == np.ConnectionString))
-                                _peerRoundRobin.Enqueue(np);
-                        }
-
+                            AddPeer(np);
                         ConnectOut();
                     }
                     catch (Exception ex)
@@ -302,6 +314,12 @@ namespace NBlockChain.Services
                     }
                 });
             }
+        }
+
+        private void AddPeer(KnownPeer newPeer)
+        {
+            if (_peerRoundRobin.All(x => x.ConnectionString != newPeer.ConnectionString))
+                _peerRoundRobin.Enqueue(newPeer);
         }
 
         private async void SharePeers(object state)
@@ -527,8 +545,8 @@ namespace NBlockChain.Services
                 using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
                 {
                     socket.Connect("8.8.8.8", 65530);
-                    IPEndPoint endPoint = socket.LocalEndPoint as IPEndPoint;
-                    _internalConnsctionString = $"tcp://{endPoint.Address.ToString()}:{_port}";
+                    var endPoint = socket.LocalEndPoint as IPEndPoint;
+                    _internalConnsctionString = $"tcp://{endPoint.Address}:{_port}";
                 }
             }
             catch (Exception ex)
@@ -561,6 +579,38 @@ namespace NBlockChain.Services
                 var result = serializer.Deserialize<T>(bdr);
                 bdr.Close();
                 return result;
+            }
+        }
+
+        private static bool IsSharablePeer(string connectionUri)
+        {
+            var uri = new Uri(connectionUri);
+            switch (uri.HostNameType)
+            {
+                case UriHostNameType.Dns:
+                    var ipAddr = Dns.GetHostAddresses(uri.DnsSafeHost);
+                    if (ipAddr.Length == 0)
+                        return false;
+                    return IsSharablePeer($"{uri.Scheme}://{ipAddr[0]}:{uri.Port}");
+                case UriHostNameType.IPv4:
+                    var ip = IPAddress.Parse(uri.Host).GetAddressBytes();
+                    switch (ip[0])
+                    {
+                        case 10:
+                        case 127:
+                            return true;
+                        case 172:
+                            return ip[1] >= 16 && ip[1] < 32;
+                        case 192:
+                            return ip[1] == 168;
+                        default:
+                            return false;
+                    }
+                case UriHostNameType.IPv6:
+                    var ipv6 = IPAddress.Parse(uri.Host);
+                    return (!ipv6.IsIPv6LinkLocal && !ipv6.IsIPv6SiteLocal);
+                default:
+                    return false;
             }
         }
 
