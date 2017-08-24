@@ -9,12 +9,34 @@ namespace ScratchPad
 {
     public class TestTransactionValidator : TransactionValidator<TestTransaction>
     {
+        private readonly ITransactionRepository _txnRepo;
+
+        public TestTransactionValidator(ITransactionRepository txnRepo)
+        {
+            _txnRepo = txnRepo;
+        }
+
         protected override int Validate(TransactionEnvelope envelope, TestTransaction transaction, ICollection<TransactionEnvelope> siblings)
         {
-            if (transaction.Message.Length > 1)
-                return 0;
+            if (transaction.Amount < 0)
+                return 1;
 
-            return 1;
+            var balance = _txnRepo.GetAccountBalance(envelope.Originator);
+            if (transaction.Amount > balance)
+                return 2;
+
+            return 0;
+        }
+    }
+
+    public class CoinbaseTransactionValidator : TransactionValidator<CoinbaseTransaction>
+    {
+        protected override int Validate(TransactionEnvelope envelope, CoinbaseTransaction transaction, ICollection<TransactionEnvelope> siblings)
+        {
+            if (transaction.Amount != -50)
+                return 1;
+
+            return 0;
         }
     }
 }

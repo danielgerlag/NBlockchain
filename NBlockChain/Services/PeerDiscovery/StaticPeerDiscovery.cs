@@ -10,12 +10,10 @@ namespace NBlockchain.Services.PeerDiscovery
     public class StaticPeerDiscovery : IPeerDiscoveryService
     {
         private readonly string _peerStr;
-        private readonly Guid _key;
-
-        public StaticPeerDiscovery(string connectionString, Guid key)
+        
+        public StaticPeerDiscovery(string connectionString)
         {
             _peerStr = connectionString;
-            _key = key;
         }
 
         public async Task AdvertiseGlobal(string connectionString)

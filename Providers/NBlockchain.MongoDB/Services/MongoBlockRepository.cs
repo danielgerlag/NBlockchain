@@ -19,7 +19,7 @@ namespace NBlockchain.MongoDB.Services
         public MongoBlockRepository(IMongoDatabase database)
         {
             _database = database;
-            //CreateIndexes(this);
+            EnsureIndexes();
         }
 
         static MongoBlockRepository()
@@ -81,13 +81,19 @@ namespace NBlockchain.MongoDB.Services
             return Blocks.AsQueryable().Min(x => x.Header.Timestamp);
         }
 
-        static bool indexesCreated = false;
-        static void CreateIndexes(MongoBlockRepository instance)
+        static bool _indexesCreated = false;
+
+        private void EnsureIndexes()
         {
-            if (!indexesCreated)
+            if (!_indexesCreated)
             {
-                //TODO
-                indexesCreated = true;
+                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Header.BlockId), new CreateIndexOptions() { Background = true, Name = "idx_blockid" });
+                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.Height), new CreateIndexOptions() { Background = true, Name = "idx_height" });
+                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Header.PreviousBlock), new CreateIndexOptions() { Background = true, Name = "idx_prevblock" });
+                //Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Transactions.Select(y => y.OriginKey)), new CreateIndexOptions() { Background = true, Name = "idx_origkey" });
+                //Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Transactions.Select(y => y.Originator)), new CreateIndexOptions() { Background = true, Name = "idx_origin" });
+
+                _indexesCreated = true;
             }
         }
     }

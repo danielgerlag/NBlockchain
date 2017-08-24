@@ -7,18 +7,18 @@ using NBlockchain.Services;
 
 namespace ScratchPad
 {
-    public class TestBlockbaseBuilder : BlockbaseTransactionBuilder<TestTransaction>
+    public class TestBlockbaseBuilder : BlockbaseTransactionBuilder<CoinbaseTransaction>
     {
         public TestBlockbaseBuilder(IAddressEncoder addressEncoder, ISignatureService signatureService) 
             : base(addressEncoder, signatureService)
         {
         }
         
-        protected override TestTransaction BuildBaseTransaction(ICollection<TransactionEnvelope> transactions)
+        protected override CoinbaseTransaction BuildBaseTransaction(ICollection<TransactionEnvelope> transactions)
         {
-            return new TestTransaction()
+            return new CoinbaseTransaction()
             {
-                Message = "base"
+                Amount = -50
             };
         }
     }

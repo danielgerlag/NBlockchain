@@ -5,9 +5,22 @@ using System.Text;
 
 namespace ScratchPad
 {
-    [TransactionType("test-v1")]
-    public class TestTransaction
+    
+    public class Transaction
+    {
+        public decimal Amount { get; set; }
+    }
+
+    [TransactionType("txn-v1")]
+    public class TestTransaction : Transaction
     {
         public string Message { get; set; }
+
+        public string Destination { get; set; }
+    }
+
+    [TransactionType("coinbase-v1")]
+    public class CoinbaseTransaction : Transaction
+    {        
     }
 }
