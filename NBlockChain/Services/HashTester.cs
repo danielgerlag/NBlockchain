@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using NBlockChain.Interfaces;
+using NBlockchain.Interfaces;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public class HashTester : IHashTester
     {

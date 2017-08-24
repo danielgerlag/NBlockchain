@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
-using NBlockChain.Services.Hashers;
-using NBlockChain.Services.PeerDiscovery;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
+using NBlockchain.Services.Hashers;
+using NBlockchain.Services.PeerDiscovery;
 using System;
 using System.Linq;
 using System.Threading.Tasks;

@@ -1,20 +1,12 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
+using System.Threading.Tasks;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Serializers;
-using MongoDB.Bson.IO;
 using MongoDB.Driver;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
-using Newtonsoft.Json.Linq;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 
-namespace NBlockchain.MongoDB
+namespace NBlockchain.MongoDB.Services
 {
     public class MongoPeerDirectory : IPeerDiscoveryService
     {

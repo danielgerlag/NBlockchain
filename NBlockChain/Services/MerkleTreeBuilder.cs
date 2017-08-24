@@ -1,13 +1,13 @@
-﻿using NBlockChain.Interfaces;
-using NBlockChain.Models;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public class MerkleTreeBuilder : IMerkleTreeBuilder
     {

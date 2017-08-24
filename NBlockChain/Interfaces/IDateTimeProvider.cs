@@ -1,4 +1,4 @@
-﻿namespace NBlockChain.Interfaces
+﻿namespace NBlockchain.Interfaces
 {
     public interface IDateTimeProvider
     {

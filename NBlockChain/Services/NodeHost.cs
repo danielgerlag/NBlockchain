@@ -5,11 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
 using System.Collections.Concurrent;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public class NodeHost : INodeHost
     {        

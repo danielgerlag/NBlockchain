@@ -1,10 +1,10 @@
-﻿using NBlockChain.Models;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using NBlockchain.Models;
 
-namespace NBlockChain.Interfaces
+namespace NBlockchain.Interfaces
 {
     public interface ITransactionValidator
     {

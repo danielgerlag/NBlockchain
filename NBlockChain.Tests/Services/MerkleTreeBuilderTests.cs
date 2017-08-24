@@ -1,5 +1,5 @@
-﻿using NBlockChain.Interfaces;
-using NBlockChain.Services;
+﻿using NBlockchain.Interfaces;
+using NBlockchain.Services;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,7 +7,7 @@ using Xunit;
 using FluentAssertions;
 using FakeItEasy;
 
-namespace NBlockChain.Tests.Services
+namespace NBlockchain.Tests.Services
 {
     public class MerkleTreeBuilderTests
     {

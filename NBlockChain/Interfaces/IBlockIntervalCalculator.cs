@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace NBlockChain.Interfaces
+namespace NBlockchain.Interfaces
 {
     public interface IBlockIntervalCalculator
     {

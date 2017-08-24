@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 
-namespace NBlockChain.Services.PeerDiscovery
+namespace NBlockchain.Services.PeerDiscovery
 {
     public class UniversalPnPDiscovery : IPeerDiscoveryService
     {

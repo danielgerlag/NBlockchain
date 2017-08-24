@@ -3,29 +3,47 @@ using System.Collections.Generic;
 using System.Text;
 using MongoDB.Driver;
 using NBlockchain.MongoDB;
-using NBlockChain.Models;
+using NBlockchain.MongoDB.Services;
+using NBlockchain.Models;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class ServiceCollectionExtensions
     {
-        public static BlockchainOptions UseMongoDB(this BlockchainOptions options, string mongoUrl, string databaseName)
+        public static BlockchainMongoOptions UseMongoDB(this BlockchainOptions options, string mongoUrl, string databaseName)
         {
-            options.UseBlockRepository(sp =>
+            options.Services.AddTransient<IMongoDatabase>(sp =>
             {
                 var client = new MongoClient(mongoUrl);
-                var db = client.GetDatabase(databaseName);
-                return new MongoBlockRepository(db);
+                return client.GetDatabase(databaseName);
             });
 
-            options.AddPeerDiscovery(sp =>
-            {
-                var client = new MongoClient(mongoUrl);
-                var db = client.GetDatabase(databaseName);
-                return new MongoPeerDirectory(db);
-            });
+            options.UseBlockRepository<MongoBlockRepository>();
+            options.AddPeerDiscovery<MongoPeerDirectory>();
 
-            return options;
+            return new BlockchainMongoOptions(options, mongoUrl, databaseName);
+        }
+    }
+
+    public class BlockchainMongoOptions
+    {
+        private readonly BlockchainOptions _options;
+        private readonly string _mongoUrl;
+        private readonly string _databaseName;
+
+        public BlockchainMongoOptions(BlockchainOptions options, string mongoUrl, string databaseName)
+        {
+            _options = options;
+            _mongoUrl = mongoUrl;
+            _databaseName = databaseName;
+        }
+
+        public BlockchainMongoOptions UseTransactionRepository<TService, TImplementation>()
+            where TImplementation : MongoTransactionRepository, TService
+            where TService : class
+        {
+            _options.Services.AddTransient<TService, TImplementation>();
+            return this;
         }
     }
 }

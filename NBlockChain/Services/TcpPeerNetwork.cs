@@ -6,16 +6,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
 using NetMQ;
 using NetMQ.Sockets;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Bson;
 using System.Net.Sockets;
 using System.Net;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public class TcpPeerNetwork : IPeerNetwork, IDisposable
     {

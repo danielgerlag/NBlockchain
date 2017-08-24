@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
-using NBlockChain.Models;
+using NBlockchain.Models;
 
-namespace NBlockChain.Interfaces
+namespace NBlockchain.Interfaces
 {
     public interface IBlockRepository
     {

@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     /// <summary>
     /// In-memory block repository for testing & demo purposes

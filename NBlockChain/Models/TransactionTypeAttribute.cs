@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace NBlockChain.Models
+namespace NBlockchain.Models
 {
     public class TransactionTypeAttribute : Attribute
     {

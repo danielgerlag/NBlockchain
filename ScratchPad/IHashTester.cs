@@ -1,4 +1,4 @@
-﻿namespace NBlockChain.Services
+﻿namespace NBlockchain.Services
 {
     public interface IHashTester
     {

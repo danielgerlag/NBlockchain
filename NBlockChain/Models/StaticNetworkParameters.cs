@@ -1,9 +1,9 @@
-﻿using NBlockChain.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using NBlockchain.Interfaces;
 
-namespace NBlockChain.Models
+namespace NBlockchain.Models
 {
     public class StaticNetworkParameters : INetworkParameters
     {

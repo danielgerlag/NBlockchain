@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace NBlockChain.Interfaces
+namespace NBlockchain.Interfaces
 {
     public interface IHasher
     {

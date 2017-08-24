@@ -1,10 +1,10 @@
-﻿using NBlockChain.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
+using NBlockchain.Interfaces;
 
-namespace NBlockChain.Services.Hashers
+namespace NBlockchain.Services.Hashers
 {
     public class SHA256Hasher : IHasher
     {

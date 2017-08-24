@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public class ByteArrayComparer : IComparer<byte[]>
     {

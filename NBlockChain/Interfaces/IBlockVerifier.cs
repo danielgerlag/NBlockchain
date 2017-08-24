@@ -1,7 +1,7 @@
-﻿using NBlockChain.Models;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using NBlockchain.Models;
 
-namespace NBlockChain.Interfaces
+namespace NBlockchain.Interfaces
 {
     public interface IBlockVerifier
     {

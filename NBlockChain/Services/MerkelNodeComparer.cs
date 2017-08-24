@@ -1,9 +1,9 @@
-﻿using NBlockChain.Models;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using NBlockchain.Models;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public class MerkelNodeComparer : IComparer<MerkleNode>
     {

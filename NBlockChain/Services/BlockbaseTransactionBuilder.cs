@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 using Newtonsoft.Json.Linq;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public abstract class BlockbaseTransactionBuilder<T> : IBlockbaseTransactionBuilder
     {

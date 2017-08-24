@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public abstract class TransactionValidator<T> : ITransactionValidator
         where T : class

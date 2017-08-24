@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
-using NBlockChain.Services;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
+using NBlockchain.Services;
 
 namespace ScratchPad
 {

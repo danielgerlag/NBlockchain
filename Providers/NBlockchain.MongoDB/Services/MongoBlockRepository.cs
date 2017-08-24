@@ -1,19 +1,15 @@
 ﻿using System;
-using System.IO;
-using System.Threading.Tasks;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
+using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Serializers;
-using MongoDB.Bson.IO;
 using MongoDB.Driver;
-using NBlockChain.Interfaces;
-using NBlockChain.Models;
-using Newtonsoft.Json.Linq;
+using NBlockchain.MongoDB.Models;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 
-namespace NBlockchain.MongoDB
+namespace NBlockchain.MongoDB.Services
 {
     public class MongoBlockRepository : IBlockRepository
     {
@@ -43,11 +39,11 @@ namespace NBlockchain.MongoDB
             //BsonSerializer.RegisterDiscriminator(t, t.FullName));
         }
 
-        private IMongoCollection<MongoBlock> Blocks => _database.GetCollection<MongoBlock>("nbc.blocks");
+        private IMongoCollection<PersistedBlock> Blocks => _database.GetCollection<PersistedBlock>("nbc.blocks");
 
         public async Task AddBlock(Block block)
         {            
-            Blocks.InsertOne(new MongoBlock(block));            
+            Blocks.InsertOne(new PersistedBlock(block));            
         }
 
         public async Task<bool> HaveBlock(byte[] blockId)
@@ -95,20 +91,5 @@ namespace NBlockchain.MongoDB
             }
         }
     }
-
-    public class MongoBlock : Block
-    {
-        public ObjectId Id { get; set; }
-
-        public MongoBlock()
-        {
-        }
-
-        public MongoBlock(Block block)
-        {
-            this.Header = block.Header;
-            this.MerkleRootNode = block.MerkleRootNode;
-            this.Transactions = block.Transactions;
-        }
-    }
+    
 }

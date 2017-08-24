@@ -1,10 +1,10 @@
-﻿using NBlockChain.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using NBlockchain.Interfaces;
 using Wiry.Base32;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public class AddressEncoder : IAddressEncoder
     {

@@ -1,13 +1,13 @@
-﻿using NBlockChain.Models;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Linq;
 using System.Text;
-using NBlockChain.Interfaces;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 using Newtonsoft.Json;
 
-namespace NBlockChain.Services
+namespace NBlockchain.Services
 {
     public class DefaultSignatureService : ISignatureService
     {

@@ -1,10 +1,10 @@
-﻿using NBlockChain.Services;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using NBlockchain.Services;
 
-namespace NBlockChain.Models
+namespace NBlockchain.Models
 {
     public class TransactionBucket
     {
