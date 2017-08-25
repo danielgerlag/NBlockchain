@@ -8,7 +8,7 @@ namespace ScratchPad
     
     public class Transaction
     {
-        public decimal Amount { get; set; }
+        public int Amount { get; set; }
     }
 
     [TransactionType("txn-v1")]

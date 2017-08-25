@@ -23,36 +23,32 @@ namespace ScratchPad
 
         public decimal GetAccountBalance(string account)
         {
-            //new JsonCommand<decimal>("");
-            //Database.RunCommand()
-            //Builders<PersistedBlock>.Filter.
-
-            var result = Blocks.Aggregate()
-
-                //.Unwind<TransactionEnvelope>(new StringFieldDefinition<PersistedBlock>("Transactions"))
-                //.Match(x => x.Originator == account)
-                //.First();
-                
-                //.Match(new BsonDocument { { "Originator", account } })
-                .Group(new BsonDocument { { "_id", BsonNull.Value }, { "sum", new BsonDocument("$sum", "$Transactions.Transaction.Amount") } })
-                
-                .ToList();
-
-
-            var totalOut = Blocks.AsQueryable()
-                .SelectMany(x => x.Transactions)
-                .Where(x => x.Originator == account)
-                .Select(x => x.Transaction)                
-                .OfType<object>()
-                .OfType<CoinbaseTransaction>()
-                .Sum(x => x.Amount);
-
+            var totalOut = 0;
             var totalIn = 0;
-                //Blocks.AsQueryable()
-                //.SelectMany(x => x.Transactions)
-                //.Where(x => x.TransactionType == "txn-v1")
-                //.Select(x => x.Transaction)                
-                //.Sum(x => (x as TestTransaction).Amount);
+
+            var outQry = Blocks.Aggregate()
+                .Unwind(x => x.Transactions)
+                .Match(new BsonDocument("Transactions.Originator", account))
+                .Group(new BsonDocument {{"_id", BsonNull.Value}, {"sum", new BsonDocument("$sum", "$Transactions.Transaction.Amount")}})
+                .SingleOrDefault();
+
+            if (outQry != null)
+            {
+                if (outQry.TryGetValue("sum", out var bOut))
+                    totalOut = bOut.AsInt32;
+            }
+
+            var inQry = Blocks.Aggregate()
+                .Unwind(x => x.Transactions)
+                .Match(new BsonDocument("Transactions.Transaction.Destination", account))
+                .Group(new BsonDocument { { "_id", BsonNull.Value }, { "sum", new BsonDocument("$sum", "$Transactions.Transaction.Amount") } })
+                .SingleOrDefault();
+
+            if (inQry != null)
+            {
+                if (inQry.TryGetValue("sum", out var bIn))
+                    totalIn = bIn.AsInt32;
+            }
 
             return (totalIn - totalOut);
         }

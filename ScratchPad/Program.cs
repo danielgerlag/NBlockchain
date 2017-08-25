@@ -16,7 +16,7 @@ namespace ScratchPad
         {
             IServiceProvider miner1 = ConfigureNode("miner1", 500, "", true);
             //IServiceProvider miner2 = ConfigureNode("miner2", 501, "tcp://localhost:500", true);
-            IServiceProvider node1;// = ConfigureNode("node1", true);
+            //IServiceProvider node1 = ConfigureNode("node1", 502, "tcp://localhost:500", true);
 
             //Console.WriteLine("starting miner");
             var keys1 = RunMiner(miner1, true);
@@ -25,13 +25,21 @@ namespace ScratchPad
 
             //RunMiner(miner2, false);
 
-            //Task.Factory.StartNew(async () =>
-            //{
-            //    await Task.Delay(5000);
-            //    Console.WriteLine("starting node");
-            //    node1 = ConfigureNode("node1", 502, "tcp://localhost:500", true);
-            //    await RunNode(node1, true);
-            //});
+            Task.Factory.StartNew(async () =>
+            {
+                await Task.Delay(5000);
+                Console.WriteLine("starting node");
+                var node1 = ConfigureNode("node1", 502, "tcp://localhost:500", true);
+                var node1Keys = RunNode(node1);
+
+                Task.Factory.StartNew(() => CheckBalance("node1", node1, node1Keys));
+
+                await Task.Delay(5000);
+                var addressEncoder = node1.GetService<IAddressEncoder>();
+                var nodeAddr = addressEncoder.EncodeAddress(node1Keys.PublicKey, 0);
+                Console.WriteLine("sending txn...");
+                SendTxn(miner1, keys1, nodeAddr, 15);
+            });
 
 
             //RunNode(node1, true);
@@ -39,22 +47,7 @@ namespace ScratchPad
 
             //blockValidator.ConfirmBlock(block).Wait();
 
-            Task.Factory.StartNew(async () =>
-            {
-                while (true)
-                {
-                    await Task.Delay(5000);
-                    Console.WriteLine("checking balances...");
-                    try
-                    {
-                        Console.WriteLine($"miner1 balance: {GetBalance(miner1, keys1)}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                    }
-                }
-            });
+            Task.Factory.StartNew(() => CheckBalance("miner1", miner1, keys1));
 
             Console.ReadLine();
         }
@@ -82,7 +75,7 @@ namespace ScratchPad
             return keys;            
         }
 
-        private static void SendTxn(IServiceProvider sp, KeyPair keys, string address, decimal amount)
+        private static void SendTxn(IServiceProvider sp, KeyPair keys, string address, int amount)
         {
             var node = sp.GetService<INodeHost>();            
             var sigService = sp.GetService<ISignatureService>();
@@ -99,7 +92,7 @@ namespace ScratchPad
             var txn1env = new TransactionEnvelope(txn1)
             {
                 OriginKey = Guid.NewGuid(),
-                TransactionType = "test-v1",
+                TransactionType = "txn-v1",
                 Originator = origin
             };
 
@@ -115,6 +108,22 @@ namespace ScratchPad
             var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
             return repo.GetAccountBalance(address);
+        }
+
+        private static async void CheckBalance(string name, IServiceProvider sp, KeyPair keys) 
+        {
+            while (true)
+            {
+                await Task.Delay(5000);
+                try
+                {
+                    Console.WriteLine($"{name} balance: {GetBalance(sp, keys)}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
         }
 
         private static KeyPair RunNode(IServiceProvider sp)
