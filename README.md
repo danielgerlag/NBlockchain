@@ -1,7 +1,7 @@
 # NBlockchain
 
 NBlockchain is a .NET standard library for building blockchain applications.
-* This project is currently in alpha status and any contributions are welcome.
+** This project is currently in alpha status and any contributions are welcome. **
 
 The idea is that the developer would only need to focus on the data on rules for a blockchain and not worry about having to build all the infrastructure to facilitate a blockchain.
 
@@ -39,6 +39,7 @@ Beyond this, it is meant to be highly customizable, you can switch out the defau
  * Chain fork detection and resolution
  * NAT traversal
  * More peer discovery options
+ * Integration tests
 
 ## Authors
  * **Daniel Gerlag** - daniel@gerlag.ca

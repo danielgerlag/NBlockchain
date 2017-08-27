@@ -16,6 +16,7 @@
     <Product>NBlockchain</Product>
     <AssemblyName>NBlockchain</AssemblyName>
     <RootNamespace>NBlockchain</RootNamespace>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
