@@ -23,8 +23,8 @@ namespace NBlockchain.MongoDB.Services
         
         public async Task<ICollection<KnownPeer>> DiscoverPeers()
         {
-            var query = await Peers.FindAsync(x => true);
-            var raw = await query.ToListAsync();
+            var query = Peers.Find(x => true);
+            var raw = query.ToList();
             return raw.Cast<KnownPeer>().ToList();
         }
 
@@ -36,7 +36,7 @@ namespace NBlockchain.MongoDB.Services
                 if (query.Any())
                 {
                     var existing = query.First();
-                    Peers.ReplaceOne(x => x.Id == existing.Id, new MongoPeerNode(peer));
+                    Peers.ReplaceOne(x => x.Id == existing.Id, new MongoPeerNode(existing.Id, peer));
                 }
                 else
                 {
@@ -74,6 +74,13 @@ namespace NBlockchain.MongoDB.Services
 
         public MongoPeerNode(KnownPeer node)
         {
+            this.ConnectionString = node.ConnectionString;
+            this.LastContact = node.LastContact;
+        }
+
+        public MongoPeerNode(ObjectId id, KnownPeer node)
+        {
+            this.Id = id;
             this.ConnectionString = node.ConnectionString;
             this.LastContact = node.LastContact;
         }
