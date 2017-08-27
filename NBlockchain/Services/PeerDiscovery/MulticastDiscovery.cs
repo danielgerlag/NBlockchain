@@ -59,11 +59,10 @@ namespace NBlockchain.Services.PeerDiscovery
                         while (!_advertiseCts.IsCancellationRequested)
                         {
                             _logger.LogDebug($"Advertising {connectionString}");
-                            udpClient.Send(data, data.Length, ipEndPoint);
+                            await udpClient.SendAsync(data, data.Length, ipEndPoint);
                             await Task.Delay(_interval);
                         }
-
-                        udpClient.Close();
+                        //udpClient.Close();
                     }
                 }
                 catch (Exception ex)
@@ -95,9 +94,9 @@ namespace NBlockchain.Services.PeerDiscovery
                 byte[] b = new byte[1024];
                 try
                 {
-                    var ipEndPoint = new IPEndPoint(IPAddress.Any, 0);
-                    var data = udpClient.Receive(ref ipEndPoint);                    
-                    string message = Encoding.ASCII.GetString(data);
+                    //var ipEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                    var data = await udpClient.ReceiveAsync(); //(ref ipEndPoint);                    
+                    string message = Encoding.ASCII.GetString(data.Buffer);
                     _logger.LogDebug($"rx message {message}");
                     if (message.StartsWith(_serviceId))
                     {

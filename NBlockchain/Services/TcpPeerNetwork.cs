@@ -565,7 +565,8 @@ namespace NBlockchain.Services
                 serializer.TypeNameHandling = TypeNameHandling.Objects;
                 serializer.Serialize(writer, data);
                 writer.Close();
-                return bw.GetBuffer();
+                bw.TryGetBuffer(out var result);
+                return result.Array;
             }
         }
 
@@ -588,7 +589,7 @@ namespace NBlockchain.Services
             switch (uri.HostNameType)
             {
                 case UriHostNameType.Dns:
-                    var ipAddr = Dns.GetHostAddresses(uri.DnsSafeHost);
+                    var ipAddr = Dns.GetHostAddressesAsync(uri.DnsSafeHost).Result;
                     if (ipAddr.Length == 0)
                         return false;
                     return IsSharablePeer($"{uri.Scheme}://{ipAddr[0]}:{uri.Port}");
