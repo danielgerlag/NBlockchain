@@ -79,10 +79,10 @@ namespace NBlockchain.Models
             Services.AddSingleton<INetworkParameters>(parameters);
         }
         
-        public void AddValidator<T>()
-            where T : ITransactionValidator
+        public void AddTransactionRule<T>()
+            where T : ITransactionRule
         {
-            Services.AddTransient(typeof(ITransactionValidator), typeof(T));
+            Services.AddTransient(typeof(ITransactionRule), typeof(T));
         }
 
         public void AddPeerDiscovery<T>()

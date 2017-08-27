@@ -1,7 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>    
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netcoreapp2.0</TargetFramework>    
+    <AssemblyName>NBlockchain.Tests</AssemblyName>    
+    <RootNamespace>NBlockchain.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NBlockchain\NBlockchain.csproj" />
+    <ProjectReference Include="..\..\NBlockchain\NBlockchain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

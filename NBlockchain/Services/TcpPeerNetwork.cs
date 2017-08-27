@@ -19,6 +19,7 @@ namespace NBlockchain.Services
 {
     public class TcpPeerNetwork : IPeerNetwork, IDisposable
     {
+        //TODO: break this class up into smaller pieces
         private const int TargetOutgoingCount = 8;
         private readonly uint _port;
 
@@ -41,7 +42,6 @@ namespace NBlockchain.Services
         private NetMQTimer _houseKeeper;
         private string _internalConnsctionString;
         private string _externalConnsctionString;
-
 
         public Guid NodeId { get; private set; }
 

@@ -36,11 +36,16 @@ namespace NBlockchain.Services
         private byte CalculateCheckSum(IEnumerable<byte> data)
         {
             byte result = 0;
-
+            var odd = true;
             foreach (var item in data)
             {
-                result += item;
+                if (odd)
+                    result += item;
+                else
+                    result *= item;
+
                 result++;
+                odd = !odd;
             }
 
             return result;

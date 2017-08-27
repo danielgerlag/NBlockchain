@@ -152,8 +152,8 @@ namespace ScratchPad
                 //x.UseMulticastDiscovery("test", "224.100.0.1", 8088);
                 x.AddTransactionType<TestTransaction>();
                 x.AddTransactionType<CoinbaseTransaction>();
-                x.AddValidator<TestTransactionValidator>();
-                x.AddValidator<CoinbaseTransactionValidator>();
+                x.AddTransactionRule<TestTransactionValidator>();
+                x.AddTransactionRule<CoinbaseTransactionValidator>();
                 x.UseBlockbaseProvider<TestBlockbaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
                 {

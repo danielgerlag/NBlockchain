@@ -6,7 +6,7 @@ using NBlockchain.Models;
 
 namespace NBlockchain.Interfaces
 {
-    public interface ITransactionValidator
+    public interface ITransactionRule
     {
         string TransactionType { get; }
         int Validate(TransactionEnvelope transaction, ICollection<TransactionEnvelope> siblings);

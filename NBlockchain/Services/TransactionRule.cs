@@ -10,12 +10,12 @@ using Newtonsoft.Json.Linq;
 
 namespace NBlockchain.Services
 {
-    public abstract class TransactionValidator<T> : ITransactionValidator
+    public abstract class TransactionRule<T> : ITransactionRule
         where T : class
     {
         public string TransactionType { get; }
 
-        protected TransactionValidator()
+        protected TransactionRule()
         {
             var attr = typeof(T).GetTypeInfo().GetCustomAttribute<TransactionTypeAttribute>();
             TransactionType = attr.TypeId;

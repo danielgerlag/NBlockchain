@@ -19,7 +19,7 @@ namespace NBlockchain.Services
         private readonly INetworkParameters _networkParameters;
         private readonly ITransactionKeyResolver _transactionKeyResolver;
         private readonly IMerkleTreeBuilder _merkleTreeBuilder;
-        private readonly ICollection<ITransactionValidator> _validators;
+        private readonly ICollection<ITransactionRule> _validators;
         private readonly IEnumerable<ValidTransactionType> _validTxnTypes;
         private readonly IAddressEncoder _addressEncoder;
         private readonly ISignatureService _signatureService;
@@ -29,7 +29,7 @@ namespace NBlockchain.Services
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
         private readonly Queue<TransactionEnvelope> _transactionQueue;
 
-        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionValidator> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotary blockNotary, ILoggerFactory loggerFactory)
+        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionRule> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotary blockNotary, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
             _addressEncoder = addressEncoder;

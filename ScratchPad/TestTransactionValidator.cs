@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ScratchPad
 {
-    public class TestTransactionValidator : TransactionValidator<TestTransaction>
+    public class TestTransactionValidator : TransactionRule<TestTransaction>
     {
         private readonly ITransactionRepository _txnRepo;
 
@@ -29,7 +29,7 @@ namespace ScratchPad
         }
     }
 
-    public class CoinbaseTransactionValidator : TransactionValidator<CoinbaseTransaction>
+    public class CoinbaseTransactionValidator : TransactionRule<CoinbaseTransaction>
     {
         protected override int Validate(TransactionEnvelope envelope, CoinbaseTransaction transaction, ICollection<TransactionEnvelope> siblings)
         {

@@ -12,7 +12,7 @@ namespace NBlockchain.Services
     public class BlockVerifier : IBlockVerifier
     {
         private readonly INetworkParameters _parameters;
-        private readonly IEnumerable<ITransactionValidator> _txnValidators;
+        private readonly IEnumerable<ITransactionRule> _txnValidators;
         private readonly IEnumerable<ValidTransactionType> _validTxnTypes;
         private readonly IAddressEncoder _addressEncoder;
         private readonly ISignatureService _signatureService;
@@ -22,7 +22,7 @@ namespace NBlockchain.Services
         private readonly ITransactionKeyResolver _transactionKeyResolver;
         private readonly IEqualityComparer<byte[]> _byteArrayEqualityComparer = new ByteArrayEqualityComparer();
 
-        public BlockVerifier(INetworkParameters parameters, IAddressEncoder addressEncoder, ISignatureService signatureService, IEnumerable<ITransactionValidator> txnValidators, IEnumerable<ValidTransactionType> validTxnTypes, IMerkleTreeBuilder merkleTreeBuilder, ITransactionKeyResolver transactionKeyResolver, IHashTester hashTester, IHasher hasher)
+        public BlockVerifier(INetworkParameters parameters, IAddressEncoder addressEncoder, ISignatureService signatureService, IEnumerable<ITransactionRule> txnValidators, IEnumerable<ValidTransactionType> validTxnTypes, IMerkleTreeBuilder merkleTreeBuilder, ITransactionKeyResolver transactionKeyResolver, IHashTester hashTester, IHasher hasher)
         {
             _parameters = parameters;
             _addressEncoder = addressEncoder;

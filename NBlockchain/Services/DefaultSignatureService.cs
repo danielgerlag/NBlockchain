@@ -13,7 +13,7 @@ namespace NBlockchain.Services
     {
         private readonly IAddressEncoder _addressEncoder;
         private readonly ITransactionKeyResolver _transactionKeyResolver;
-        private readonly ECCurve _curve = ECCurve.NamedCurves.brainpoolP192t1;
+        private readonly ECCurve _curve = ECCurve.NamedCurves.brainpoolP160r1;
         private readonly HashAlgorithmName _hashAlgorithm = HashAlgorithmName.SHA512;
 
         public DefaultSignatureService(IAddressEncoder addressEncoder, ITransactionKeyResolver transactionKeyResolver)
