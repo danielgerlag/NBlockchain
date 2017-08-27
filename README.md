@@ -1,7 +1,8 @@
 # NBlockchain
 
 NBlockchain is a .NET standard library for building blockchain applications.
-** This project is currently in alpha status and any contributions are welcome. **
+
+**This project is currently in alpha status and any contributions are welcome.**
 
 The idea is that the developer would only need to focus on the data on rules for a blockchain and not worry about having to build all the infrastructure to facilitate a blockchain.
 
@@ -18,6 +19,17 @@ Beyond this, it is meant to be highly customizable, you can switch out the defau
  * Hashing algorithm
  * Block verification
  * Block notary (eg. proof of work, etc...)
+
+## Installation
+
+Using Nuget package console
+```
+PM> Install-Package NBlockchain -Version 0.1.0-alpha
+```
+Using .NET CLI
+```
+dotnet add package NBlockchain --version 0.1.0-alpha
+```
 
 ## Samples
  * [Digital Currency](Samples/DigitalCurrency)
