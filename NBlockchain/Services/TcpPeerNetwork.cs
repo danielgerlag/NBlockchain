@@ -147,6 +147,7 @@ namespace NBlockchain.Services
 
                         case MessageOp.Disconnect:
                             _logger.LogDebug("Recv disconnect from {0}", serverId);
+                            _poller.Remove(e.Socket);
                             e.Socket.Close();
                             _outgoingSockets.TryRemove(serverId, out var sock);
                             break;
@@ -283,6 +284,7 @@ namespace NBlockchain.Services
                 _outgoingSockets[peerId]
                     .SendFrame(ConvertOp(MessageOp.Disconnect));
 
+                _poller.Remove(_outgoingSockets[peerId]);
                 _outgoingSockets[peerId].Close();
             }
 
