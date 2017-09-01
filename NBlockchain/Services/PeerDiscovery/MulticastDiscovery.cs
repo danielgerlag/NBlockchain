@@ -18,16 +18,18 @@ namespace NBlockchain.Services.PeerDiscovery
         private readonly string _multicastAddress;
         private readonly int _port;
         private readonly ILogger _logger;
+        private readonly IOwnAddressResolver _ownAddressResolver;
         private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
 
         private Task _advertiseTask;
         private CancellationTokenSource _advertiseCts;
 
-        public MulticastDiscovery(string serviceId, string multicastAddress, int port, ILoggerFactory loggerFactory)
+        public MulticastDiscovery(string serviceId, string multicastAddress, int port, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver)
         {
             _serviceId = serviceId;
             _multicastAddress = multicastAddress;
             _port = port;
+            _ownAddressResolver = ownAddressResolver;
             _logger = loggerFactory.CreateLogger<MulticastDiscovery>();
         }
 
@@ -78,13 +80,9 @@ namespace NBlockchain.Services.PeerDiscovery
             var result = new HashSet<KnownPeer>();            
             var udpClient = new UdpClient(_port);
 
-            using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
-            {
-                socket.Connect("8.8.8.8", 65530);
-                var localEndPoint = (socket.LocalEndPoint as IPEndPoint);
-                udpClient.JoinMulticastGroup(IPAddress.Parse(_multicastAddress), localEndPoint.Address);
-            }
-            
+            var ownAddress = _ownAddressResolver.ResolvePreferredLocalAddress();
+            udpClient.JoinMulticastGroup(IPAddress.Parse(_multicastAddress), ownAddress);
+
             udpClient.Client.ReceiveTimeout = Convert.ToInt32(_interval.TotalMilliseconds + 1000);
 
             DateTime pollUntil = DateTime.Now.Add(_interval);

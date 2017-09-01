@@ -3,19 +3,19 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using NBlockchain.Interfaces;
+using NBlockchain.Models;
 using NetMQ;
 using NetMQ.Sockets;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Bson;
-using System.Net.Sockets;
-using System.Net;
-using NBlockchain.Interfaces;
-using NBlockchain.Models;
 
-namespace NBlockchain.Services
+namespace NBlockchain.Services.Net
 {
     public class TcpPeerNetwork : IPeerNetwork, IDisposable
     {
@@ -29,6 +29,7 @@ namespace NBlockchain.Services
         private readonly IBlockRepository _blockRepository;
         private readonly IEnumerable<IPeerDiscoveryService> _discoveryServices;
         private readonly ILogger _logger;
+        private readonly IOwnAddressResolver _ownAddressResolver;
 
         private readonly ConcurrentQueue<KnownPeer> _peerRoundRobin = new ConcurrentQueue<KnownPeer>();
         private readonly ConcurrentDictionary<string, Guid> _outgoingConnectionStrings = new ConcurrentDictionary<string, Guid>();
@@ -45,12 +46,13 @@ namespace NBlockchain.Services
 
         public Guid NodeId { get; private set; }
 
-        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory)
+        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver)
         {
             _port = port;
             _logger = loggerFactory.CreateLogger<TcpPeerNetwork>();
             _blockRepository = blockRepository;
             _discoveryServices = discoveryServices;
+            _ownAddressResolver = ownAddressResolver;
             NodeId = Guid.NewGuid();
             _sharePeersTimer = new Timer(SharePeers, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
             _incomingSocket.ReceiveReady += IncomingSocketReceiveReady;
@@ -61,44 +63,46 @@ namespace NBlockchain.Services
             try
             {
                 var message = e.Socket.ReceiveMultipartMessage();
-                
-                if (message.FrameCount > 1)
+
+                if (message.FrameCount < 2)
                 {
-                    var clientId = new Guid(message[0].Buffer);
-                    var op = (MessageOp) (message[1].Buffer.First());
-                    _incomingPeerLastContact[clientId] = DateTime.Now;
+                    return;
+                }
 
-                    switch (op)
-                    {
-                        case MessageOp.Block:
-                            await ProcessBlock(message, clientId, false);
-                            break;
-                        case MessageOp.Tail:
-                            await ProcessBlock(message, clientId, true);
-                            break;
-                        case MessageOp.Txn:
-                            await ProcessTransaction(message, clientId);
-                            break;
-                        case MessageOp.BlockRequest:
-                            await ProcessBlockRequest(message, e.Socket, clientId);
-                            break;
-                        case MessageOp.PeerShare:
-                            if (IsSharablePeer(message[2].ConvertToString()))
-                                AddPeer(new KnownPeer() { ConnectionString = message[2].ConvertToString() });
-                            break;
-                        case MessageOp.Connect:
-                            _logger.LogDebug("Recv connect from {0}", clientId);
-                            _incomingSocket.SendMoreFrame(message[0].Buffer)
-                                .SendMoreFrame(NodeId.ToByteArray())
-                                .SendMoreFrame(ConvertOp(MessageOp.Identify))
-                                .SendFrame(message[2].Buffer);
-                            break;
+                var clientId = new Guid(message[0].Buffer);
+                var op = (MessageOp) (message[1].Buffer.First());
+                _incomingPeerLastContact[clientId] = DateTime.Now;
 
-                        case MessageOp.Disconnect:
-                            _logger.LogDebug("Recv disconnect from {0}", clientId);
-                            _incomingPeerLastContact.TryRemove(clientId, out var v);
-                            break;
-                    }
+                switch (op)
+                {
+                    case MessageOp.Block:
+                        await ProcessBlock(message, clientId, false);
+                        break;
+                    case MessageOp.Tail:
+                        await ProcessBlock(message, clientId, true);
+                        break;
+                    case MessageOp.Txn:
+                        await ProcessTransaction(message, clientId);
+                        break;
+                    case MessageOp.BlockRequest:
+                        await ProcessBlockRequest(message, e.Socket, clientId);
+                        break;
+                    case MessageOp.PeerShare:
+                        if (IsSharablePeer(message[2].ConvertToString()))
+                            AddPeer(new KnownPeer() { ConnectionString = message[2].ConvertToString() });
+                        break;
+                    case MessageOp.Connect:
+                        _logger.LogDebug("Recv connect from {0}", clientId);
+                        _incomingSocket.SendMoreFrame(message[0].Buffer)
+                            .SendMoreFrame(NodeId.ToByteArray())
+                            .SendMoreFrame(ConvertOp(MessageOp.Identify))
+                            .SendFrame(message[2].Buffer);
+                        break;
+
+                    case MessageOp.Disconnect:
+                        _logger.LogDebug("Recv disconnect from {0}", clientId);
+                        _incomingPeerLastContact.TryRemove(clientId, out var v);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -112,46 +116,48 @@ namespace NBlockchain.Services
             try
             {
                 var message = e.Socket.ReceiveMultipartMessage();
-                if (message.FrameCount > 1)
+                if (message.FrameCount < 2)
                 {
-                    var serverId = new Guid(message[0].Buffer);
-                    var op = (MessageOp) (message[1].Buffer.First());
+                    return;
+                }
 
-                    switch (op)
-                    {
-                        case MessageOp.Block:
-                            await ProcessBlock(message, serverId, false);
-                            break;
-                        case MessageOp.Tail:
-                            await ProcessBlock(message, serverId, true);
-                            break;
-                        case MessageOp.Txn:
-                            await ProcessTransaction(message, serverId);
-                            break;
-                        case MessageOp.BlockRequest:
-                            await ProcessBlockRequest(message, e.Socket, null);
-                            break;
-                        case MessageOp.PeerShare:
-                            if (IsSharablePeer(message[2].ConvertToString()))
-                                AddPeer(new KnownPeer() { ConnectionString = message[2].ConvertToString() });
-                            break;
+                var serverId = new Guid(message[0].Buffer);
+                var op = (MessageOp) (message[1].Buffer.First());
 
-                        case MessageOp.Identify:
-                            _logger.LogDebug("Recv identify from {0}", serverId);
-                            _outgoingSockets[serverId] = e.Socket;
-                            var peerConStr = message[2].ConvertToString();
-                            _outgoingConnectionStrings[peerConStr] = serverId;
-                            foreach (var prr in _peerRoundRobin.Where(x => x.ConnectionString == peerConStr).ToList())
-                                prr.LastContact = DateTime.Now;
-                            break;
+                switch (op)
+                {
+                    case MessageOp.Block:
+                        await ProcessBlock(message, serverId, false);
+                        break;
+                    case MessageOp.Tail:
+                        await ProcessBlock(message, serverId, true);
+                        break;
+                    case MessageOp.Txn:
+                        await ProcessTransaction(message, serverId);
+                        break;
+                    case MessageOp.BlockRequest:
+                        await ProcessBlockRequest(message, e.Socket, null);
+                        break;
+                    case MessageOp.PeerShare:
+                        if (IsSharablePeer(message[2].ConvertToString()))
+                            AddPeer(new KnownPeer() { ConnectionString = message[2].ConvertToString() });
+                        break;
 
-                        case MessageOp.Disconnect:
-                            _logger.LogDebug("Recv disconnect from {0}", serverId);
-                            _poller.Remove(e.Socket);
-                            e.Socket.Close();
-                            _outgoingSockets.TryRemove(serverId, out var sock);
-                            break;
-                    }
+                    case MessageOp.Identify:
+                        _logger.LogDebug("Recv identify from {0}", serverId);
+                        _outgoingSockets[serverId] = e.Socket;
+                        var peerConStr = message[2].ConvertToString();
+                        _outgoingConnectionStrings[peerConStr] = serverId;
+                        foreach (var prr in _peerRoundRobin.Where(x => x.ConnectionString == peerConStr).ToList())
+                            prr.LastContact = DateTime.Now;
+                        break;
+
+                    case MessageOp.Disconnect:
+                        _logger.LogDebug("Recv disconnect from {0}", serverId);
+                        _poller.Remove(e.Socket);
+                        e.Socket.Close();
+                        _outgoingSockets.TryRemove(serverId, out var sock);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -542,19 +548,10 @@ namespace NBlockchain.Services
 
         private void DiscoverOwnConnectionStrings()
         {
-            try
-            {
-                using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
-                {
-                    socket.Connect("8.8.8.8", 65530);
-                    var endPoint = socket.LocalEndPoint as IPEndPoint;
-                    _internalConnsctionString = $"tcp://{endPoint.Address}:{_port}";
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message);
-            }
+            var ownAddress = _ownAddressResolver.ResolvePreferredLocalAddress();
+            if (ownAddress != null)
+                _internalConnsctionString = $"tcp://{ownAddress}:{_port}";
+
             //TODO: external addresses
         }
 
