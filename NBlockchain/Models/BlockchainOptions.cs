@@ -103,6 +103,13 @@ namespace NBlockchain.Models
             Services.AddTransient<IPeerDiscoveryService>(sp => new MulticastDiscovery(serviceId, multicastAddress, port, sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>()));
         }
 
+        public void UseTransactionRepository<TService, TImplementation>()
+            where TImplementation : TransactionRepository, TService
+            where TService : class
+        {
+            Services.AddTransient<TService, TImplementation>();
+        }
+
         public void AddTransactionType<T>()
         {
             var attr = typeof(T).GetTypeInfo().GetCustomAttribute<TransactionTypeAttribute>();

@@ -103,7 +103,7 @@ namespace ScratchPad
 
         private static decimal GetBalance(IServiceProvider sp, KeyPair keys)
         {
-            var repo = sp.GetService<ITransactionRepository>();            
+            var repo = sp.GetService<ICustomTransactionRepository>();            
             var addressEncoder = sp.GetService<IAddressEncoder>();
             var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
@@ -145,8 +145,8 @@ namespace ScratchPad
             IServiceCollection services = new ServiceCollection();
             services.AddBlockchain(x =>
             {
-                x.UseMongoDB(@"mongodb://localhost:27017", db)
-                    .UseTransactionRepository<ITransactionRepository, TransactionRepository>();
+                //x.UseMongoDB(@"mongodb://localhost:27017", db)
+                x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
                 x.UseTcpPeerNetwork(port);
                 x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peers));
                 //x.UseMulticastDiscovery("test", "224.100.0.1", 8088);

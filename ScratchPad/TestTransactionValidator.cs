@@ -9,9 +9,9 @@ namespace ScratchPad
 {
     public class TestTransactionValidator : TransactionRule<TestTransaction>
     {
-        private readonly ITransactionRepository _txnRepo;
+        private readonly ICustomTransactionRepository _txnRepo;
 
-        public TestTransactionValidator(ITransactionRepository txnRepo)
+        public TestTransactionValidator(ICustomTransactionRepository txnRepo)
         {
             _txnRepo = txnRepo;
         }

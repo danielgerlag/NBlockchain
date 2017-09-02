@@ -35,8 +35,8 @@ namespace NBlockchain.Services.Database
         }
 
         public Task<bool> HaveBlock(byte[] blockId)
-        {
-            var result = Blocks.Exists(x => blockId.SequenceEqual(x.Entity.Header.BlockId));
+        {            
+            var result = Blocks.Exists(x => x.Entity.Header.BlockId.SequenceEqual(blockId));
             return Task.FromResult(result);
         }
 
