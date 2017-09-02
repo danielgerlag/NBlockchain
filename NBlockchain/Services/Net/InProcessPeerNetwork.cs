@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NBlockchain.Interfaces;
 using NBlockchain.Models;
 
-namespace NBlockchain.Services
+namespace NBlockchain.Services.Net
 {
     public class InProcessPeerNetwork : IPeerNetwork, IDisposable
     {

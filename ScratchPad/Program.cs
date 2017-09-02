@@ -14,7 +14,7 @@ namespace ScratchPad
     {
         static void Main(string[] args)
         {
-            IServiceProvider miner1 = ConfigureNode("miner1", 500, "", true);
+            IServiceProvider miner1 = ConfigureNode("miner1", 500, new string[0], true);
             //IServiceProvider miner2 = ConfigureNode("miner2", 501, "tcp://localhost:500", true);
             //IServiceProvider node1 = ConfigureNode("node1", 502, "tcp://localhost:500", true);
 
@@ -29,7 +29,7 @@ namespace ScratchPad
             {
                 await Task.Delay(5000);
                 Console.WriteLine("starting node");
-                var node1 = ConfigureNode("node1", 502, "tcp://localhost:500", true);
+                var node1 = ConfigureNode("node1", 502, new string[] {"tcp://localhost:500"}, true);
                 var node1Keys = RunNode(node1);
 
                 Task.Factory.StartNew(() => CheckBalance("node1", node1, node1Keys));
@@ -103,7 +103,7 @@ namespace ScratchPad
 
         private static decimal GetBalance(IServiceProvider sp, KeyPair keys)
         {
-            var repo = sp.GetService<ITransactionRepository>();            
+            var repo = sp.GetService<ICustomTransactionRepository>();            
             var addressEncoder = sp.GetService<IAddressEncoder>();
             var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
@@ -139,16 +139,16 @@ namespace ScratchPad
             return keys;
         }
 
-        private static IServiceProvider ConfigureNode(string db, uint port, string peerStr, bool logging)
+        private static IServiceProvider ConfigureNode(string db, uint port, string[] peers, bool logging)
         {
             //setup dependency injection
             IServiceCollection services = new ServiceCollection();
             services.AddBlockchain(x =>
             {
-                x.UseMongoDB(@"mongodb://localhost:27017", db)
-                    .UseTransactionRepository<ITransactionRepository, TransactionRepository>();
+                //x.UseMongoDB(@"mongodb://localhost:27017", db)
+                x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
                 x.UseTcpPeerNetwork(port);
-                x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peerStr));
+                x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peers));
                 //x.UseMulticastDiscovery("test", "224.100.0.1", 8088);
                 x.AddTransactionType<TestTransaction>();
                 x.AddTransactionType<CoinbaseTransaction>();

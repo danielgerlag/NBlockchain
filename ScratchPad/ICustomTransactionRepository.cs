@@ -1,6 +1,6 @@
 ﻿namespace ScratchPad
 {
-    public interface ITransactionRepository
+    public interface ICustomTransactionRepository
     {
         decimal GetAccountBalance(string account);
     }

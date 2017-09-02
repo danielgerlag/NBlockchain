@@ -6,7 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NBlockchain.Interfaces;
 using NBlockchain.Services;
+using NBlockchain.Services.Database;
 using NBlockchain.Services.Hashers;
+using NBlockchain.Services.Net;
 using NBlockchain.Services.PeerDiscovery;
 
 namespace NBlockchain.Models
@@ -65,7 +67,7 @@ namespace NBlockchain.Models
 
         public void UseTcpPeerNetwork(uint port)
         {
-            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>()));
+            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>()));
         }
 
         public void UseParameters<T>()
@@ -98,7 +100,14 @@ namespace NBlockchain.Models
 
         public void UseMulticastDiscovery(string serviceId, string multicastAddress, int port)
         {
-            Services.AddTransient<IPeerDiscoveryService>(sp => new MulticastDiscovery(serviceId, multicastAddress, port, sp.GetService<ILoggerFactory>()));
+            Services.AddTransient<IPeerDiscoveryService>(sp => new MulticastDiscovery(serviceId, multicastAddress, port, sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>()));
+        }
+
+        public void UseTransactionRepository<TService, TImplementation>()
+            where TImplementation : TransactionRepository, TService
+            where TService : class
+        {
+            Services.AddTransient<TService, TImplementation>();
         }
 
         public void AddTransactionType<T>()
@@ -130,7 +139,10 @@ namespace NBlockchain.Models
             AddDefault<IHashTester, HashTester>(ServiceLifetime.Transient);
             AddDefault<IBlockVerifier, BlockVerifier>(ServiceLifetime.Transient);
             AddDefault<IPeerNetwork, InProcessPeerNetwork>(ServiceLifetime.Singleton);
-            AddDefault<IBlockRepository, InMemoryBlockRepository>(ServiceLifetime.Singleton);
+
+            AddDefault<IDataConnection, DataConnection>(ServiceLifetime.Singleton);
+            AddDefault<IBlockRepository, DefaultBlockRepository>(ServiceLifetime.Singleton);
+            AddDefault<IPeerDiscoveryService, DefaultPeerRepository>(ServiceLifetime.Singleton);
 
             AddDefault<INodeHost, NodeHost>(ServiceLifetime.Singleton);
             AddDefault<IBlockReceiver>(ServiceLifetime.Singleton, sp => sp.GetService<INodeHost>());
@@ -139,6 +151,8 @@ namespace NBlockchain.Models
             AddDefault<IDateTimeProvider, DateTimeProvider>(ServiceLifetime.Singleton);
             AddDefault<IBlockIntervalCalculator, BlockIntervalCalculator>(ServiceLifetime.Singleton);
             AddDefault<IBuildQueue, BuildQueue>(ServiceLifetime.Singleton);
+
+            AddDefault<IOwnAddressResolver, OwnAddressResolver>(ServiceLifetime.Singleton);
 
 
         }

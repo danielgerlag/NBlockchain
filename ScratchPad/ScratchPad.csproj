@@ -15,7 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NBlockchain\NBlockchain.csproj" />
-    <ProjectReference Include="..\Providers\NBlockchain.MongoDB\NBlockchain.MongoDB.csproj" />
   </ItemGroup>
 
 </Project>
