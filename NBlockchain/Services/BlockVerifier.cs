@@ -35,9 +35,9 @@ namespace NBlockchain.Services
             _hasher = hasher;
         }
 
-        public bool Verify(Block block, uint difficulty)
+        public bool Verify(Block block)
         {
-            if (!_hashTester.TestHash(block.Header.BlockId, difficulty))
+            if (!_hashTester.TestHash(block.Header.BlockId, block.Header.Difficulty))
                 return false;
 
             var seed = block.Header.CombineHashableElementsWithNonce(block.Header.Nonce);

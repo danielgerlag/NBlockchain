@@ -149,8 +149,8 @@ namespace NBlockchain.Models
             AddDefault<ITransactionReceiver>(ServiceLifetime.Singleton, sp => sp.GetService<INodeHost>());
 
             AddDefault<IDateTimeProvider, DateTimeProvider>(ServiceLifetime.Singleton);
-            //AddDefault<IBlockIntervalCalculator, BlockIntervalCalculator>(ServiceLifetime.Singleton);
-            AddDefault<IBuildQueue, BuildQueue>(ServiceLifetime.Singleton);
+            AddDefault<IDifficultyCalculator, DifficultyCalculator>(ServiceLifetime.Singleton);
+            //AddDefault<IBuildQueue, BuildQueue>(ServiceLifetime.Singleton);
 
             AddDefault<IOwnAddressResolver, OwnAddressResolver>(ServiceLifetime.Singleton);
 

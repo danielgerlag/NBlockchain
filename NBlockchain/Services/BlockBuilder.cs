@@ -26,6 +26,7 @@ namespace NBlockchain.Services
         private readonly IBlockRepository _blockRepository;
         private readonly IPeerNetwork _peerNetwork;
         private readonly IBlockReceiver _blockReciever;
+        private readonly IDifficultyCalculator _difficultyCalculator;
 
         private KeyPair _builderKeys;
         private Task _buildTask;
@@ -33,17 +34,16 @@ namespace NBlockchain.Services
 
         private CancellationTokenSource _buildCancelToken;
         private CancellationTokenSource _blockCancelToken;
+                
 
-        private readonly byte[] HeadKey = new byte[] { 0x0 };
-
-        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IPendingTransactionList pendingTransactionList, IBlockRepository blockRepository, IBlockReceiver blockReciever, ILoggerFactory loggerFactory)
+        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IPendingTransactionList pendingTransactionList, IBlockRepository blockRepository, IBlockReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
             _peerNetwork= peerNetwork;
             _blockbaseBuilder = blockbaseBuilder;
             _blockReciever = blockReciever;
             _blockNotary = blockNotary;
-            
+            _difficultyCalculator = difficultyCalculator;
             _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
             _logger = loggerFactory.CreateLogger<BlockBuilder>();
@@ -57,6 +57,7 @@ namespace NBlockchain.Services
         {
             _builderKeys = builderKeys;
             _buildGenesis = genesis;
+            _buildCancelToken = new CancellationTokenSource();
             _buildTask = Task.Factory.StartNew(BuildTask);
         }
 
@@ -78,15 +79,19 @@ namespace NBlockchain.Services
                         await Task.Delay(TimeSpan.FromSeconds(5));
                         continue;
                     }
-                    prevHeader = new BlockHeader() { BlockId = HeadKey, Height = 0 };
+                    prevHeader = new BlockHeader() { BlockId = Block.HeadKey, Height = 0, Timestamp = DateTime.UtcNow.Ticks };
                     _logger.LogInformation($"Building genesis block");
                 }
-                var block = await AssembleBlock(prevHeader.BlockId, prevHeader.Height + 1, _blockCancelToken.Token);
+                var difficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
+                var block = await AssembleBlock(prevHeader.BlockId, prevHeader.Height + 1, difficulty, _blockCancelToken.Token);
                 if (block != null)
                 {
-                    var recvResult = await _blockReciever.RecieveTail(block);
-                    if (recvResult == PeerDataResult.Relay)
-                        _peerNetwork.BroadcastTail(block);
+                    if (block.Header.Status == BlockStatus.Confirmed)
+                    {
+                        var recvResult = await _blockReciever.RecieveTail(block);
+                        if (recvResult == PeerDataResult.Relay)
+                            _peerNetwork.BroadcastTail(block);
+                    }
                 }
             }
         }
@@ -107,7 +112,7 @@ namespace NBlockchain.Services
 
         }
 
-        private async Task<Block> AssembleBlock(byte[] prevBlock, uint height, CancellationToken cancellationToken)
+        private async Task<Block> AssembleBlock(byte[] prevBlock, uint height, uint difficulty, CancellationToken cancellationToken)
         {
             var targetTxns = _pendingTransactionList.Get;
             targetTxns.Add(_blockbaseBuilder.Build(_builderKeys, targetTxns));
@@ -132,7 +137,7 @@ namespace NBlockchain.Services
                     Version = _networkParameters.HeaderVersion,
                     Height = height,
                     PreviousBlock = prevBlock,
-                    Difficulty = _networkParameters.Difficulty
+                    Difficulty = difficulty
                 }
             };
 

@@ -73,12 +73,15 @@ namespace NBlockchain.MongoDB.Services
             return query.FirstOrDefault();
         }
 
-        public async Task<long> GetGenesisBlockTime()
+        public async Task<long> GetAverageBlockTime(DateTime startUtc, DateTime endUtc)
         {
-            if (Blocks.Count(x => true) == 0)
-                return DateTime.UtcNow.Ticks;
+            throw new NotImplementedException();
+            //var startTicks = startUtc.Ticks;
+            //var endTicks = endUtc.Ticks;
+            //var avg = Blocks.AsQueryable().Where(x => x.Header.Timestamp > startTicks && x.Header.Timestamp < endTicks && x.Header.Height > 1)
+            //    .Average(x => (x.Header.Timestamp - (Blocks.AsQueryable().First(y => y.Header.BlockId.SequenceEqual(x.Header.PreviousBlock)).Header.Timestamp)));
 
-            return Blocks.AsQueryable().Min(x => x.Header.Timestamp);
+            //return Convert.ToInt64(avg);
         }
 
         static bool _indexesCreated = false;
@@ -95,7 +98,7 @@ namespace NBlockchain.MongoDB.Services
 
                 _indexesCreated = true;
             }
-        }
+        }        
     }
     
 }

@@ -78,23 +78,7 @@ namespace NBlockchain.Services
             {
                 _resetEvent.Set();
             }
-        }
-
-        public async Task<long> GetGenesisBlockTime()
-        {
-            _resetEvent.WaitOne();
-            try
-            {
-                if (!_blocks.Any())
-                    return DateTime.UtcNow.Ticks;
-
-                return await Task.FromResult(_blocks.Min(x => x.Header.Timestamp));
-            }
-            finally
-            {
-                _resetEvent.Set();
-            }
-        }
+        }               
 
         public async Task<bool> IsEmpty()
         {
@@ -102,6 +86,24 @@ namespace NBlockchain.Services
             try
             {
                 return await Task.FromResult(!_blocks.Any());
+            }
+            finally
+            {
+                _resetEvent.Set();
+            }
+        }
+
+        public async Task<long> GetAverageBlockTime(DateTime startUtc, DateTime endUtc)
+        {
+            _resetEvent.WaitOne();
+            try
+            {
+                var startTicks = startUtc.Ticks;
+                var endTicks = endUtc.Ticks;
+                var avg = _blocks.Where(x => x.Header.Timestamp > startTicks && x.Header.Timestamp < endTicks && x.Header.Height > 1)
+                    .Average(x => (x.Header.Timestamp - (_blocks.First(y => y.Header.BlockId.SequenceEqual(x.Header.PreviousBlock)).Header.Timestamp)));
+
+                return Convert.ToInt64(avg);
             }
             finally
             {

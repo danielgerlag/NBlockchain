@@ -55,6 +55,7 @@ namespace ScratchPad
         private static KeyPair RunMiner(IServiceProvider sp, bool genesis)
         {
             var node = sp.GetService<INodeHost>();
+            var miner = sp.GetService<IBlockBuilder>();
             var network = sp.GetService<IPeerNetwork>();
             var sigService = sp.GetService<ISignatureService>();
             var addressEncoder = sp.GetService<IAddressEncoder>();
@@ -67,10 +68,7 @@ namespace ScratchPad
             //var keys2 = sigService.GenerateKeyPair();
             var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
-            if (genesis)
-                node.BuildGenesisBlock(keys).Wait();
-
-            node.StartBuildingBlocks(keys);
+            miner.Start(keys, genesis);
 
             return keys;            
         }

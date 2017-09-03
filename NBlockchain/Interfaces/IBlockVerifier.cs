@@ -5,7 +5,7 @@ namespace NBlockchain.Interfaces
 {
     public interface IBlockVerifier
     {
-        bool Verify(Block block, uint difficulty);
+        bool Verify(Block block);
 
         bool VerifyContentThreshold(ICollection<byte[]> actual, ICollection<byte[]> expected);
 

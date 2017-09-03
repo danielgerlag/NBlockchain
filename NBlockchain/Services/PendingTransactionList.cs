@@ -33,13 +33,17 @@ namespace NBlockchain.Services
 
         public event EventHandler Changed;
 
-        public void Add(TransactionEnvelope txn)
+        public bool Add(TransactionEnvelope txn)
         {
             _evt.WaitOne();
             try
             {
+                if (_list.Any(x => x.OriginKey == txn.OriginKey && x.Originator == x.Originator))
+                    return false;
+
                 _list.Add(txn);
                 Task.Factory.StartNew(() => Changed?.Invoke(this, new EventArgs()));
+                return true;
             }
             finally
             {

@@ -23,13 +23,12 @@ namespace NBlockchain.Services
         private readonly IPeerNetwork _peerNetwork;
         private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);        
         private readonly IPendingTransactionList _pendingTransactionList;
+        private readonly IDifficultyCalculator _difficultyCalculator;
 
-
-        private readonly byte[] HeadKey = new byte[] { 0x0 };
         private readonly Timer _pollTimer;
         
 
-        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, ITransactionKeyResolver transactionKeyResolver, IPendingTransactionList pendingTransactionList, IPeerNetwork peerNetwork)
+        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, ITransactionKeyResolver transactionKeyResolver, IPendingTransactionList pendingTransactionList, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator)
         {
             _blockRepository = blockRepository;
             _blockVerifier = blockVerifier;        
@@ -39,6 +38,7 @@ namespace NBlockchain.Services
             _transactionKeyResolver = transactionKeyResolver;
             _pendingTransactionList = pendingTransactionList;
             _peerNetwork = peerNetwork;
+            _difficultyCalculator = difficultyCalculator;
             _logger = loggerFactory.CreateLogger<NodeHost>();
 
             _peerNetwork.RegisterBlockReceiver(this);
@@ -53,10 +53,7 @@ namespace NBlockchain.Services
             try
             {
                 _logger.LogDebug($"Recv tail {BitConverter.ToString(block.Header.BlockId)}");
-
-                if (block.Header.Difficulty != _parameters.Difficulty)
-                    return PeerDataResult.Ignore;
-
+                
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                     return PeerDataResult.Ignore;
 
@@ -66,14 +63,19 @@ namespace NBlockchain.Services
                 {
                     if (!block.Header.PreviousBlock.SequenceEqual(prevHeader.BlockId))
                         return PeerDataResult.Ignore;
+
+                    var expectedDifficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
+
+                    if (block.Header.Difficulty < expectedDifficulty)
+                        return PeerDataResult.Ignore;
                 }
                 else
                 {
-                    if (!(block.Header.PreviousBlock.SequenceEqual(HeadKey) && await _blockRepository.IsEmpty()))
+                    if (!(block.Header.PreviousBlock.SequenceEqual(Block.HeadKey) && await _blockRepository.IsEmpty()))
                         return PeerDataResult.Ignore;
                 }
 
-                if (!_blockVerifier.Verify(block, _parameters.Difficulty))
+                if (!_blockVerifier.Verify(block))
                 {
                     _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Demerit;
@@ -112,11 +114,11 @@ namespace NBlockchain.Services
 
                 if (!await _blockRepository.HaveBlock(block.Header.PreviousBlock))
                 {
-                    if (!(block.Header.PreviousBlock.SequenceEqual(HeadKey) && await _blockRepository.IsEmpty()))
+                    if (!(block.Header.PreviousBlock.SequenceEqual(Block.HeadKey) && await _blockRepository.IsEmpty()))
                         return PeerDataResult.Ignore;
                 }
 
-                if (!_blockVerifier.Verify(block, block.Header.Difficulty))
+                if (!_blockVerifier.Verify(block))
                 {
                     _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Demerit;
@@ -170,7 +172,7 @@ namespace NBlockchain.Services
             if (prevHeader == null)
             {
                 _logger.LogDebug("Requesting head block");
-                _peerNetwork.RequestNextBlock(HeadKey);
+                _peerNetwork.RequestNextBlock(Block.HeadKey);
                 return;
             }
             

@@ -4,8 +4,7 @@ namespace NBlockchain.Interfaces
 {
     public interface INetworkParameters
     {
-        TimeSpan BlockTime { get; }
-        uint Difficulty { get; }
+        TimeSpan BlockTime { get; }        
         uint HeaderVersion { get; }
         decimal ExpectedContentThreshold { get; }
     }

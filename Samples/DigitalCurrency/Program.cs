@@ -13,6 +13,7 @@ namespace DigitalCurrency
     class Program
     {
         private static INodeHost _host;
+        private static IBlockBuilder _miner;
         private static IPeerNetwork _network;
         private static ISignatureService _sigService;
         private static IAddressEncoder _addressEncoder;
@@ -56,6 +57,7 @@ namespace DigitalCurrency
             var serviceProvider = ConfigureNode("DigitalCurrency", 10500);
 
             _host = serviceProvider.GetService<INodeHost>();
+            _miner = serviceProvider.GetService<IBlockBuilder>();
             _network = serviceProvider.GetService<IPeerNetwork>();
             _sigService = serviceProvider.GetService<ISignatureService>();
             _addressEncoder = serviceProvider.GetService<IAddressEncoder>();
@@ -94,14 +96,13 @@ namespace DigitalCurrency
                 case "help":
                     PrintHelp();
                     break;
-                case "genesis":
-                    Console.WriteLine("Building genesis block...");
-                    _host.BuildGenesisBlock(keys).Wait();
-                    Console.WriteLine("Built genesis block");
+                case "mine-genesis":
+                    Console.WriteLine("Mining...");
+                    _miner.Start(keys, true);
                     break;
                 case "mine":
                     Console.WriteLine("Mining...");
-                    _host.StartBuildingBlocks(keys);
+                    _miner.Start(keys, false);
                     break;
                 case "balance":
                     if (args.Length == 1)
@@ -143,7 +144,7 @@ namespace DigitalCurrency
         {
             Console.WriteLine();
             Console.WriteLine("help - prints this message");
-            Console.WriteLine("genesis - build the genesis block");
+            Console.WriteLine("mine-genesis - build the genesis block and start mining");
             Console.WriteLine("mine - start mining");
             Console.WriteLine("balance - prints your balance");
             Console.WriteLine("balance [address] - prints balance of [address]");

@@ -23,7 +23,6 @@ namespace NBlockchain.Services
             _hashTester = hashTester;
         }
 
-
         public async Task ConfirmBlock(Block block, CancellationToken cancellationToken)
         {
             long counter = 0;
@@ -53,7 +52,7 @@ namespace NBlockchain.Services
             var seed = header.CombineHashableElementsWithNonce(nonce);
             var hash = _hasher.ComputeHash(seed);
             
-            if (_hashTester.TestHash(hash, _networkParameters.Difficulty))
+            if (_hashTester.TestHash(hash, header.Difficulty))
             {
                 _lock.WaitOne();
                 try

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using NBlockchain.Models;
 
 namespace NBlockchain.Interfaces
@@ -10,6 +11,7 @@ namespace NBlockchain.Interfaces
         Task<bool> IsEmpty();
         Task<BlockHeader> GetNewestBlockHeader();
         Task<Block> GetNextBlock(byte[] prevBlockId);
-        Task<long> GetGenesisBlockTime();
+
+        Task<long> GetAverageBlockTime(DateTime startUtc, DateTime endUtc);
     }
 }
