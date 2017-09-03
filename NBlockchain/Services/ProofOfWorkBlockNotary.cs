@@ -31,8 +31,8 @@ namespace NBlockchain.Services
 
             var opts = new ExecutionDataflowBlockOptions()
             {
-                MaxDegreeOfParallelism = Environment.ProcessorCount,
-                BoundedCapacity = Environment.ProcessorCount + 1
+                MaxDegreeOfParallelism = 1, //Environment.ProcessorCount,
+                BoundedCapacity = 2 //Environment.ProcessorCount + 1
             };
             
             var actionBlock = new ActionBlock<long>(nonce => VerifyForNonce(block.Header, nonce, cancellationTokenSource), opts);

@@ -53,7 +53,7 @@ namespace DigitalCurrency
 
         static void Main(string[] args)
         {
-            var serviceProvider = ConfigureNode("DigitalCurrency", 10500);
+            var serviceProvider = ConfigureNode("DigitalCurrency2", 10500);
 
             _host = serviceProvider.GetService<INodeHost>();
             _miner = serviceProvider.GetService<IBlockBuilder>();

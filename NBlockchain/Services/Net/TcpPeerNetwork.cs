@@ -247,7 +247,7 @@ namespace NBlockchain.Services.Net
         {
             _incomingSocket.Bind($"tcp://*:{_port}");
             _poller.Add(_incomingSocket);
-            _poller.RunAsync();
+            _poller.RunAsync();            
             _houseKeeper = new NetMQTimer(TimeSpan.FromSeconds(30));
             _houseKeeper.Elapsed += HouseKeeper_Elapsed;
             _poller.Add(_houseKeeper);
@@ -486,7 +486,7 @@ namespace NBlockchain.Services.Net
         {
             Task.Factory.StartNew(async () =>
             {
-                var incoming = GetIncomingPeers();
+                var incoming = GetIncomingPeers().Where(x => x != NodeId);
                 foreach (var peerId in incoming)
                 {
                     _logger.LogDebug($"Requesting block from incoming peer {peerId}");
@@ -496,13 +496,13 @@ namespace NBlockchain.Services.Net
                         .SendMoreFrame(ConvertOp(MessageOp.BlockRequest))
                         .SendFrame(blockId);
 
-                    await Task.Delay(TimeSpan.FromSeconds(30));
+                    await Task.Delay(TimeSpan.FromSeconds(5));
 
                     if ((await _blockRepository.GetNextBlock(blockId)) != null)
                         return;
                 }
 
-                var outgoing = GetOutgoingPeers();
+                var outgoing = GetOutgoingPeers().Where(x => x != NodeId);
                 foreach (var peerId in outgoing)
                 {
                     _logger.LogDebug($"Requesting block from outgoing peer {peerId}");
@@ -510,7 +510,7 @@ namespace NBlockchain.Services.Net
                         .SendMoreFrame(ConvertOp(MessageOp.BlockRequest))
                         .SendFrame(blockId);
 
-                    await Task.Delay(TimeSpan.FromSeconds(30));
+                    await Task.Delay(TimeSpan.FromSeconds(5));
 
                     if ((await _blockRepository.GetNextBlock(blockId)) != null)
                         return;
