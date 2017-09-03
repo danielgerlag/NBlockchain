@@ -5,7 +5,7 @@ using NBlockchain.Interfaces;
 
 namespace NBlockchain.Services
 {
-    public class BlockIntervalCalculator : IBlockIntervalCalculator
+    public class BlockIntervalCalculator //: IBlockIntervalCalculator
     {
         private readonly INetworkParameters _parameters;
         private readonly IDateTimeProvider _dateTimeProvider;

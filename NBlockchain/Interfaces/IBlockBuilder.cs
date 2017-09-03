@@ -7,8 +7,7 @@ namespace NBlockchain.Interfaces
 {
     public interface IBlockBuilder
     {
-        Task<Block> BuildBlock(byte[] prevBlock, uint height, KeyPair builderKeys, CancellationToken cancellationToken);
-        void QueueTransaction(TransactionEnvelope transaction);
-        void FlushQueue();
+        void Start(KeyPair builderKeys, bool genesis);
+        void Stop();
     }
 }

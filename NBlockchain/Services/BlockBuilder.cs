@@ -15,66 +15,102 @@ namespace NBlockchain.Services
 {
     public class BlockBuilder : IBlockBuilder
     {
-
         private readonly INetworkParameters _networkParameters;
         private readonly ITransactionKeyResolver _transactionKeyResolver;
-        private readonly IMerkleTreeBuilder _merkleTreeBuilder;
-        private readonly ICollection<ITransactionRule> _validators;
-        private readonly IEnumerable<ValidTransactionType> _validTxnTypes;
-        private readonly IAddressEncoder _addressEncoder;
-        private readonly ISignatureService _signatureService;
+        private readonly IMerkleTreeBuilder _merkleTreeBuilder;        
         private readonly IBlockbaseTransactionBuilder _blockbaseBuilder;
         private readonly IBlockNotary _blockNotary;
         private readonly ILogger _logger;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
-        private readonly Queue<TransactionEnvelope> _transactionQueue;
+        private readonly IPendingTransactionList _pendingTransactionList;
+        private readonly IBlockRepository _blockRepository;
+        private readonly IPeerNetwork _peerNetwork;
+        private readonly IBlockReceiver _blockReciever;
 
-        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IEnumerable<ITransactionRule> validators, IAddressEncoder addressEncoder, ISignatureService signatureService, IBlockbaseTransactionBuilder blockbaseBuilder, IEnumerable<ValidTransactionType> validTxnTypes, IBlockNotary blockNotary, ILoggerFactory loggerFactory)
+        private KeyPair _builderKeys;
+        private Task _buildTask;
+        private bool _buildGenesis = false;
+
+        private CancellationTokenSource _buildCancelToken;
+        private CancellationTokenSource _blockCancelToken;
+
+        private readonly byte[] HeadKey = new byte[] { 0x0 };
+
+        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IPendingTransactionList pendingTransactionList, IBlockRepository blockRepository, IBlockReceiver blockReciever, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
-            _addressEncoder = addressEncoder;
-            _signatureService = signatureService;
+            _peerNetwork= peerNetwork;
             _blockbaseBuilder = blockbaseBuilder;
-            _validTxnTypes = validTxnTypes;
+            _blockReciever = blockReciever;
             _blockNotary = blockNotary;
-            _validators = validators.ToList();
+            
             _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
             _logger = loggerFactory.CreateLogger<BlockBuilder>();
-            _transactionQueue = new Queue<TransactionEnvelope>();         
+            _blockRepository = blockRepository;
+            _pendingTransactionList = pendingTransactionList;
+            _pendingTransactionList.Changed += PendingTransactionList_Changed;
         }
 
-        public void QueueTransaction(TransactionEnvelope transaction)
+
+        public void Start(KeyPair builderKeys, bool genesis)
+        {
+            _builderKeys = builderKeys;
+            _buildGenesis = genesis;
+            _buildTask = Task.Factory.StartNew(BuildTask);
+        }
+
+        public void Stop()
+        {
+            _buildCancelToken.Cancel();
+        }
+                
+        private async void BuildTask()
+        {
+            while (!_buildCancelToken.IsCancellationRequested)
+            {
+                _blockCancelToken = new CancellationTokenSource();
+                var prevHeader = await _blockRepository.GetNewestBlockHeader();
+                if (prevHeader == null)
+                {
+                    if (!_buildGenesis)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(5));
+                        continue;
+                    }
+                    prevHeader = new BlockHeader() { BlockId = HeadKey, Height = 0 };
+                    _logger.LogInformation($"Building genesis block");
+                }
+                var block = await AssembleBlock(prevHeader.BlockId, prevHeader.Height + 1, _blockCancelToken.Token);
+                if (block != null)
+                {
+                    var recvResult = await _blockReciever.RecieveTail(block);
+                    if (recvResult == PeerDataResult.Relay)
+                        _peerNetwork.BroadcastTail(block);
+                }
+            }
+        }
+
+        private void PendingTransactionList_Changed(object sender, EventArgs e)
         {
             _resetEvent.WaitOne();
             try
-            {                
-                _transactionQueue.Enqueue(transaction);
+            {
+                if (_blockCancelToken != null)
+                    _blockCancelToken.Cancel();
+
             }
             finally
             {
                 _resetEvent.Set();
             }
+
         }
 
-        public void FlushQueue()
+        private async Task<Block> AssembleBlock(byte[] prevBlock, uint height, CancellationToken cancellationToken)
         {
-            _resetEvent.WaitOne();
-            try
-            {
-                _transactionQueue.Clear();
-            }
-            finally
-            {
-                _resetEvent.Set();
-            }
-        }
-
-        public async Task<Block> BuildBlock(byte[] prevBlock, uint height, KeyPair builderKeys, CancellationToken cancellationToken)
-        {            
-            var targetTxns = SelectTransactions();
-            _logger.LogDebug($"Building block {height} with {targetTxns.Count} transactions");
-            targetTxns.Add(_blockbaseBuilder.Build(builderKeys, targetTxns));
+            var targetTxns = _pendingTransactionList.Get;
+            targetTxns.Add(_blockbaseBuilder.Build(_builderKeys, targetTxns));
             var hashDict = HashTransactions(targetTxns, cancellationToken);
             var merkleRoot = await _merkleTreeBuilder.BuildTree(hashDict.Keys);
 
@@ -83,10 +119,10 @@ namespace NBlockchain.Services
                 _logger.LogDebug($"Cancelled building block {height}");
                 return null;
             }
-                        
+
             var result = new Block()
             {
-                Transactions = targetTxns,                
+                Transactions = targetTxns,
                 MerkleRootNode = merkleRoot,
                 Header = new BlockHeader()
                 {
@@ -99,7 +135,7 @@ namespace NBlockchain.Services
                     Difficulty = _networkParameters.Difficulty
                 }
             };
-            
+
             _logger.LogDebug($"Notarizing block {height}");
             await _blockNotary.ConfirmBlock(result, cancellationToken);
 
@@ -113,30 +149,9 @@ namespace NBlockchain.Services
 
             return result;
         }
-
-
-        private ICollection<TransactionEnvelope> SelectTransactions()
-        {
-            var targetTransactions = new List<TransactionEnvelope>();
-            _resetEvent.WaitOne();
-            try
-            {
-                while (_transactionQueue.Any())
-                {
-                    var txn = _transactionQueue.Dequeue();
-
-                    if (targetTransactions.All(x => x.OriginKey != txn.OriginKey && x.Originator != txn.Originator))
-                        targetTransactions.Add(txn);
-                }
-            }
-            finally
-            {
-                _resetEvent.Set();
-            }
-
-            return targetTransactions;
-        }
-
+                
+        
+                
         private IDictionary<byte[], TransactionEnvelope> HashTransactions(ICollection<TransactionEnvelope> transactions, CancellationToken cancellationToken)
         {
             var result = new ConcurrentDictionary<byte[], TransactionEnvelope>();
