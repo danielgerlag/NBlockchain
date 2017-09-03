@@ -58,7 +58,7 @@ namespace ScratchPad
             var miner = sp.GetService<IBlockBuilder>();
             var network = sp.GetService<IPeerNetwork>();
             var sigService = sp.GetService<ISignatureService>();
-            var addressEncoder = sp.GetService<IAddressEncoder>();
+            //var addressEncoder = sp.GetService<IAddressEncoder>();
 
             network.Open();
 
@@ -66,7 +66,7 @@ namespace ScratchPad
 
             var keys = sigService.GenerateKeyPair();
             //var keys2 = sigService.GenerateKeyPair();
-            var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
+            //var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
             miner.Start(keys, genesis);
 
@@ -101,11 +101,12 @@ namespace ScratchPad
 
         private static decimal GetBalance(IServiceProvider sp, KeyPair keys)
         {
-            var repo = sp.GetService<ICustomTransactionRepository>();            
-            var addressEncoder = sp.GetService<IAddressEncoder>();
-            var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
+            //var repo = sp.GetService<ICustomTransactionRepository>();            
+            //var addressEncoder = sp.GetService<IAddressEncoder>();
+            //var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
-            return repo.GetAccountBalance(address);
+            //return repo.GetAccountBalance(address);
+            return 0;
         }
 
         private static async void CheckBalance(string name, IServiceProvider sp, KeyPair keys) 
@@ -129,7 +130,7 @@ namespace ScratchPad
             var node = sp.GetService<INodeHost>();
             var network = sp.GetService<IPeerNetwork>();
             var sigService = sp.GetService<ISignatureService>();
-            var addressEncoder = sp.GetService<IAddressEncoder>();
+            //var addressEncoder = sp.GetService<IAddressEncoder>();
             var keys = sigService.GenerateKeyPair();
             network.Open();
 
@@ -144,19 +145,18 @@ namespace ScratchPad
             services.AddBlockchain(x =>
             {
                 //x.UseMongoDB(@"mongodb://localhost:27017", db)
-                x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
+                //x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
                 x.UseTcpPeerNetwork(port);
                 x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peers));
                 //x.UseMulticastDiscovery("test", "224.100.0.1", 8088);
                 x.AddTransactionType<TestTransaction>();
                 x.AddTransactionType<CoinbaseTransaction>();
-                x.AddTransactionRule<TestTransactionValidator>();
+                //x.AddTransactionRule<TestTransactionValidator>();
                 x.AddTransactionRule<CoinbaseTransactionValidator>();
                 x.UseBlockbaseProvider<TestBlockbaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
                 {
-                    BlockTime = TimeSpan.FromSeconds(10),
-                    Difficulty = 200,
+                    BlockTime = TimeSpan.FromSeconds(10),                    
                     HeaderVersion = 1,
                     ExpectedContentThreshold = 0.8m
                 });

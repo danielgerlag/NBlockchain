@@ -131,8 +131,7 @@ namespace NBlockchain.Services
                 MerkleRootNode = merkleRoot,
                 Header = new BlockHeader()
                 {
-                    MerkelRoot = merkleRoot.Value,
-                    Timestamp = DateTime.UtcNow.Ticks,
+                    MerkelRoot = merkleRoot.Value,                    
                     Status = BlockStatus.Unconfirmed,
                     Version = _networkParameters.HeaderVersion,
                     Height = height,

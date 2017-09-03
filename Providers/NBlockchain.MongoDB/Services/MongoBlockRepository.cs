@@ -42,8 +42,17 @@ namespace NBlockchain.MongoDB.Services
         private IMongoCollection<PersistedBlock> Blocks => _database.GetCollection<PersistedBlock>("nbc.blocks");
 
         public async Task AddBlock(Block block)
-        {            
-            Blocks.InsertOne(new PersistedBlock(block));            
+        {
+            var persisted = new PersistedBlock(block);
+            var prevHeader = Blocks
+                .Find(x => x.Header.BlockId == block.Header.PreviousBlock)
+                .Project(x => x.Header)
+                .FirstOrDefault();
+
+            if (prevHeader != null)
+                persisted.Statistics.BlockTime = Convert.ToInt32(TimeSpan.FromTicks(block.Header.Timestamp - prevHeader.Timestamp).TotalSeconds);
+
+            Blocks.InsertOne(persisted);
         }
 
         public async Task<bool> HaveBlock(byte[] blockId)
@@ -73,15 +82,23 @@ namespace NBlockchain.MongoDB.Services
             return query.FirstOrDefault();
         }
 
-        public async Task<long> GetAverageBlockTime(DateTime startUtc, DateTime endUtc)
-        {
-            throw new NotImplementedException();
-            //var startTicks = startUtc.Ticks;
-            //var endTicks = endUtc.Ticks;
-            //var avg = Blocks.AsQueryable().Where(x => x.Header.Timestamp > startTicks && x.Header.Timestamp < endTicks && x.Header.Height > 1)
-            //    .Average(x => (x.Header.Timestamp - (Blocks.AsQueryable().First(y => y.Header.BlockId.SequenceEqual(x.Header.PreviousBlock)).Header.Timestamp)));
+        public async Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
+        {            
+            var startTicks = startUtc.Ticks;
+            var endTicks = endUtc.Ticks;
 
-            //return Convert.ToInt64(avg);
+            var avgQuery = Blocks.Aggregate()
+                .Match(x => x.Header.Timestamp > startTicks && x.Header.Timestamp < endTicks && x.Header.Height > 1)
+                .Group(new BsonDocument { { "_id", "$item" }, { "avg", new BsonDocument("$avg", "$Statistics.BlockTime") } })
+                .SingleOrDefault();
+
+            if (avgQuery != null)
+            {
+                if (avgQuery.TryGetValue("avg", out var bOut))
+                    return Convert.ToInt32(bOut.AsDouble);
+            }
+
+            return 0;
         }
 
         static bool _indexesCreated = false;
@@ -90,9 +107,9 @@ namespace NBlockchain.MongoDB.Services
         {
             if (!_indexesCreated)
             {
-                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Header.BlockId), new CreateIndexOptions() { Background = true, Name = "idx_blockid" });
-                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.Height), new CreateIndexOptions() { Background = true, Name = "idx_height" });
-                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Header.PreviousBlock), new CreateIndexOptions() { Background = true, Name = "idx_prevblock" });
+                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.BlockId), new CreateIndexOptions() { Background = true, Unique = true });
+                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.Height), new CreateIndexOptions() { Background = true });
+                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Header.PreviousBlock), new CreateIndexOptions() { Background = true });
                 //Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Transactions.Select(y => y.OriginKey)), new CreateIndexOptions() { Background = true, Name = "idx_origkey" });
                 //Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Transactions.Select(y => y.Originator)), new CreateIndexOptions() { Background = true, Name = "idx_origin" });
 

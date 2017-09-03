@@ -10,6 +10,8 @@ namespace NBlockchain.MongoDB.Models
     {
         public ObjectId Id { get; set; }
 
+        public BlockStatistics Statistics { get; set; } = new BlockStatistics();
+
         public PersistedBlock()
         {
         }

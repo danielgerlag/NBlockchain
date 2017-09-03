@@ -59,6 +59,7 @@ namespace NBlockchain.Services
                 {
                     if (header.Status == BlockStatus.Unconfirmed)
                     {
+                        header.Timestamp = DateTime.UtcNow.Ticks;
                         header.BlockId = hash;
                         header.Nonce = nonce;
                         header.Status = BlockStatus.Confirmed;

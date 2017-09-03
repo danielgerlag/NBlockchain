@@ -11,7 +11,8 @@ namespace NBlockchain.Services
         private readonly IBlockRepository _blockRepository;
         private readonly INetworkParameters _parameters;
         private readonly TimeSpan _sampleInterval = TimeSpan.FromHours(1);
-        private readonly uint _step = 50;
+        private readonly uint _step = 1;
+        private readonly uint _genesisValue = 700;
 
         public DifficultyCalculator(IBlockRepository blockRepository, INetworkParameters parameters)
         {
@@ -26,9 +27,9 @@ namespace NBlockchain.Services
             var latestHeader = await _blockRepository.GetNewestBlockHeader();
 
             if (latestHeader == null)
-                return 0;
+                return _genesisValue;
 
-            var avg = await _blockRepository.GetAverageBlockTime(start, end);
+            var avg = await _blockRepository.GetAverageBlockTimeInSecs(start, end);
             var avgBlockTime = TimeSpan.FromTicks(avg);
 
             if (_parameters.BlockTime > avgBlockTime)

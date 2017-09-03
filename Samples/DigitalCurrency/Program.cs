@@ -36,8 +36,7 @@ namespace DigitalCurrency
                 x.UseBlockbaseProvider<CoinbaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
                 {
-                    BlockTime = TimeSpan.FromSeconds(10),
-                    Difficulty = 300,
+                    BlockTime = TimeSpan.FromSeconds(10),                    
                     HeaderVersion = 1,
                     ExpectedContentThreshold = 0.8m
                 });

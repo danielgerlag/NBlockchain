@@ -70,7 +70,7 @@ namespace NBlockchain.Services.Database
             return await Task.FromResult(Blocks.Min(x => x.Entity.Header.Timestamp));
         }
 
-        public Task<long> GetAverageBlockTime(DateTime startUtc, DateTime endUtc)
+        public Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
         {
             throw new NotImplementedException();
         }

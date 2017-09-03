@@ -93,17 +93,20 @@ namespace NBlockchain.Services
             }
         }
 
-        public async Task<long> GetAverageBlockTime(DateTime startUtc, DateTime endUtc)
+        public async Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
         {
             _resetEvent.WaitOne();
             try
             {
                 var startTicks = startUtc.Ticks;
                 var endTicks = endUtc.Ticks;
-                var avg = _blocks.Where(x => x.Header.Timestamp > startTicks && x.Header.Timestamp < endTicks && x.Header.Height > 1)
-                    .Average(x => (x.Header.Timestamp - (_blocks.First(y => y.Header.BlockId.SequenceEqual(x.Header.PreviousBlock)).Header.Timestamp)));
+                var sample = _blocks.Where(x => x.Header.Timestamp > startTicks && x.Header.Timestamp < endTicks && x.Header.Height > 1);
+                if (sample.Count() == 0)
+                    return 0;
 
-                return Convert.ToInt64(avg);
+                var avg = sample.Average(x => (x.Header.Timestamp - (_blocks.First(y => y.Header.BlockId.SequenceEqual(x.Header.PreviousBlock)).Header.Timestamp)));
+                
+                return Convert.ToInt32(TimeSpan.FromTicks(Convert.ToInt64(avg)).TotalSeconds);
             }
             finally
             {
