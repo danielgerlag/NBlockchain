@@ -155,7 +155,6 @@ services.AddBlockchain(x =>
     x.UseParameters(new StaticNetworkParameters()
     {
         BlockTime = TimeSpan.FromSeconds(10),
-        Difficulty = 300,
         HeaderVersion = 1,
         ExpectedContentThreshold = 0.8m
     });
