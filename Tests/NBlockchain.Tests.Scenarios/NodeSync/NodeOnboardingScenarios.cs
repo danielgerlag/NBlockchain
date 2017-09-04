@@ -27,8 +27,7 @@ namespace NBlockchain.Tests.Scenarios.NodeSync
                 x.UseBlockbaseProvider<BaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
                 {
-                    BlockTime = TimeSpan.FromSeconds(10),
-                    Difficulty = 200,
+                    BlockTime = TimeSpan.FromSeconds(10),                    
                     HeaderVersion = 1,
                     ExpectedContentThreshold = 0.8m
                 });

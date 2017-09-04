@@ -5,7 +5,7 @@ using NBlockchain.Models;
 
 namespace NBlockchain.Interfaces
 {
-    public interface IBlockBuilder
+    public interface IBlockMiner
     {
         void Start(KeyPair builderKeys, bool genesis);
         void Stop();

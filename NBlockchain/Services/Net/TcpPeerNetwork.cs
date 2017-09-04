@@ -96,7 +96,7 @@ namespace NBlockchain.Services.Net
                         _incomingSocket.SendMoreFrame(message[0].Buffer)
                             .SendMoreFrame(NodeId.ToByteArray())
                             .SendMoreFrame(ConvertOp(MessageOp.Identify))
-                            .SendFrame(message[2].Buffer);
+                            .TrySendFrame(message[2].Buffer);
                         break;
 
                     case MessageOp.Disconnect:
@@ -245,7 +245,7 @@ namespace NBlockchain.Services.Net
 
         public void Open()
         {
-            _incomingSocket.Bind($"tcp://*:{_port}");
+            _incomingSocket.Bind($"tcp://*:{_port}");            
             _poller.Add(_incomingSocket);
             _poller.RunAsync();            
             _houseKeeper = new NetMQTimer(TimeSpan.FromSeconds(30));
@@ -266,8 +266,8 @@ namespace NBlockchain.Services.Net
                 peer.ReceiveReady += Peer_ReceiveReady;
                 peer.Connect(connStr);
                 _poller.Add(peer);
-                peer.SendMoreFrame(ConvertOp(MessageOp.Connect))
-                    .SendFrame(connStr);
+                peer.SendMoreFrame(ConvertOp(MessageOp.Connect))                    
+                    .TrySendFrame(connStr);
             }
             catch (Exception ex)
             {
@@ -282,13 +282,13 @@ namespace NBlockchain.Services.Net
                 _incomingSocket
                     .SendMoreFrame(peerId.ToByteArray())
                     .SendMoreFrame(NodeId.ToByteArray())
-                    .SendFrame(ConvertOp(MessageOp.Disconnect));
+                    .TrySendFrame(ConvertOp(MessageOp.Disconnect));
             }
 
             foreach (var peerId in GetOutgoingPeers())
             {
                 _outgoingSockets[peerId]
-                    .SendFrame(ConvertOp(MessageOp.Disconnect));
+                    .TrySendFrame(ConvertOp(MessageOp.Disconnect));
 
                 _poller.Remove(_outgoingSockets[peerId]);
                 _outgoingSockets[peerId].Close();
@@ -425,7 +425,7 @@ namespace NBlockchain.Services.Net
                 msg.Append(BitConverter.GetBytes(hopCount));
                 msg.Append(data);
 
-                socket.SendMultipartMessage(msg);
+                socket.TrySendMultipartMessage(msg);
             }
             catch (Exception ex)
             {
@@ -474,7 +474,7 @@ namespace NBlockchain.Services.Net
                 msg.Append(BitConverter.GetBytes(hopCount));
                 msg.Append(data);
 
-                socket.SendMultipartMessage(msg);
+                socket.TrySendMultipartMessage(msg);
             }
             catch (Exception ex)
             {
@@ -494,21 +494,24 @@ namespace NBlockchain.Services.Net
                         .SendMoreFrame(peerId.ToByteArray())
                         .SendMoreFrame(NodeId.ToByteArray())
                         .SendMoreFrame(ConvertOp(MessageOp.BlockRequest))
-                        .SendFrame(blockId);
+                        .TrySendFrame(blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));
 
                     if ((await _blockRepository.GetNextBlock(blockId)) != null)
                         return;
                 }
+            });
 
+            Task.Factory.StartNew(async () =>
+            {                
                 var outgoing = GetOutgoingPeers().Where(x => x != NodeId);
                 foreach (var peerId in outgoing)
                 {
                     _logger.LogDebug($"Requesting block from outgoing peer {peerId}");
                     _outgoingSockets[peerId]
                         .SendMoreFrame(ConvertOp(MessageOp.BlockRequest))
-                        .SendFrame(blockId);
+                        .TrySendFrame(blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));
 

@@ -134,7 +134,7 @@ namespace NBlockchain.Models
             AddDefault<IMerkleTreeBuilder, MerkleTreeBuilder>(ServiceLifetime.Transient);
             AddDefault<IBlockNotary, ProofOfWorkBlockNotary>(ServiceLifetime.Transient);
             AddDefault<IAddressEncoder, AddressEncoder>(ServiceLifetime.Transient);
-            AddDefault<IBlockBuilder, BlockBuilder>(ServiceLifetime.Singleton);
+            AddDefault<IBlockMiner, BlockMiner>(ServiceLifetime.Singleton);
             AddDefault<IHashTester, HashTester>(ServiceLifetime.Transient);
             AddDefault<IBlockVerifier, BlockVerifier>(ServiceLifetime.Transient);
             AddDefault<IPeerNetwork, InProcessPeerNetwork>(ServiceLifetime.Singleton);

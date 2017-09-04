@@ -64,6 +64,9 @@ namespace NBlockchain.Services
                     if (!block.Header.PreviousBlock.SequenceEqual(prevHeader.BlockId))
                         return PeerDataResult.Ignore;
 
+                    if (block.Header.Timestamp < prevHeader.Timestamp)
+                        return PeerDataResult.Ignore;
+
                     var expectedDifficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
 
                     if (block.Header.Difficulty < expectedDifficulty)
@@ -176,7 +179,7 @@ namespace NBlockchain.Services
                 return;
             }
             
-            if ((DateTime.UtcNow.Ticks - prevHeader.Timestamp) > _parameters.BlockTime.Ticks)
+            //if ((DateTime.UtcNow.Ticks - prevHeader.Timestamp) > _parameters.BlockTime.Ticks)
             {
                 _logger.LogDebug($"Requesting missing block after {BitConverter.ToString(prevHeader.BlockId)}");
                 _peerNetwork.RequestNextBlock(prevHeader.BlockId);

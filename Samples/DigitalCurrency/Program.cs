@@ -13,7 +13,7 @@ namespace DigitalCurrency
     class Program
     {
         private static INodeHost _host;
-        private static IBlockBuilder _miner;
+        private static IBlockMiner _miner;
         private static IPeerNetwork _network;
         private static ISignatureService _sigService;
         private static IAddressEncoder _addressEncoder;
@@ -53,10 +53,10 @@ namespace DigitalCurrency
 
         static void Main(string[] args)
         {
-            var serviceProvider = ConfigureNode("DigitalCurrency2", 10500);
+            var serviceProvider = ConfigureNode("DigitalCurrency", 10500);
 
             _host = serviceProvider.GetService<INodeHost>();
-            _miner = serviceProvider.GetService<IBlockBuilder>();
+            _miner = serviceProvider.GetService<IBlockMiner>();
             _network = serviceProvider.GetService<IPeerNetwork>();
             _sigService = serviceProvider.GetService<ISignatureService>();
             _addressEncoder = serviceProvider.GetService<IAddressEncoder>();

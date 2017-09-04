@@ -30,7 +30,7 @@ namespace NBlockchain.Services
                 return _genesisValue;
 
             var avg = await _blockRepository.GetAverageBlockTimeInSecs(start, end);
-            var avgBlockTime = TimeSpan.FromTicks(avg);
+            var avgBlockTime = TimeSpan.FromSeconds(avg);
 
             if (_parameters.BlockTime > avgBlockTime)
                 return latestHeader.Difficulty + _step;

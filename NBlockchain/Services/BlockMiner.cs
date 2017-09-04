@@ -13,7 +13,7 @@ using NBlockchain.Models;
 
 namespace NBlockchain.Services
 {
-    public class BlockBuilder : IBlockBuilder
+    public class BlockMiner : IBlockMiner
     {
         private readonly INetworkParameters _networkParameters;
         private readonly ITransactionKeyResolver _transactionKeyResolver;
@@ -36,7 +36,7 @@ namespace NBlockchain.Services
         private CancellationTokenSource _blockCancelToken;
                 
 
-        public BlockBuilder(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IPendingTransactionList pendingTransactionList, IBlockRepository blockRepository, IBlockReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
+        public BlockMiner(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IPendingTransactionList pendingTransactionList, IBlockRepository blockRepository, IBlockReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
             _peerNetwork= peerNetwork;
@@ -46,7 +46,7 @@ namespace NBlockchain.Services
             _difficultyCalculator = difficultyCalculator;
             _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
-            _logger = loggerFactory.CreateLogger<BlockBuilder>();
+            _logger = loggerFactory.CreateLogger<BlockMiner>();
             _blockRepository = blockRepository;
             _pendingTransactionList = pendingTransactionList;
             _pendingTransactionList.Changed += PendingTransactionList_Changed;
@@ -58,7 +58,7 @@ namespace NBlockchain.Services
             _builderKeys = builderKeys;
             _buildGenesis = genesis;
             _buildCancelToken = new CancellationTokenSource();
-            _buildTask = Task.Factory.StartNew(BuildTask);
+            _buildTask = Task.Factory.StartNew(Mine);
         }
 
         public void Stop()
@@ -66,7 +66,7 @@ namespace NBlockchain.Services
             _buildCancelToken.Cancel();
         }
                 
-        private async void BuildTask()
+        private async void Mine()
         {
             while (!_buildCancelToken.IsCancellationRequested)
             {
@@ -80,7 +80,7 @@ namespace NBlockchain.Services
                         continue;
                     }
                     prevHeader = new BlockHeader() { BlockId = Block.HeadKey, Height = 0, Timestamp = DateTime.UtcNow.Ticks };
-                    _logger.LogInformation($"Building genesis block");
+                    _logger.LogInformation($"Mining genesis block");
                 }
                 var difficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
                 var block = await AssembleBlock(prevHeader.BlockId, prevHeader.Height + 1, difficulty, _blockCancelToken.Token);
