@@ -21,7 +21,7 @@ namespace NBlockchain.Services
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly ITransactionKeyResolver _transactionKeyResolver;        
         private readonly IPeerNetwork _peerNetwork;
-        private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);        
+        private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);
         private readonly IPendingTransactionList _pendingTransactionList;
         private readonly IDifficultyCalculator _difficultyCalculator;
 
