@@ -252,8 +252,8 @@ namespace NBlockchain.Services.Net
             _houseKeeper.Elapsed += HouseKeeper_Elapsed;
             _poller.Add(_houseKeeper);
             _houseKeeper.Enable = true;
-            DiscoverPeers();
             DiscoverOwnConnectionStrings();
+            DiscoverPeers();
             AdvertiseToPeers();
         }
 
@@ -341,6 +341,8 @@ namespace NBlockchain.Services.Net
         private void HouseKeeper_Elapsed(object sender, NetMQTimerEventArgs e)
         {
             _logger.LogDebug("Performing house keeping");
+            DiscoverPeers();
+            AdvertiseToPeers();
             ConnectOut();
         }
 
@@ -352,22 +354,24 @@ namespace NBlockchain.Services.Net
 
             var actual = 0;
             var counter = 0;
-
-            while ((actual < target) && (counter < _peerRoundRobin.Count))
+            lock (_peerRoundRobin)
             {
-                if (_peerRoundRobin.TryDequeue(out var kp))
+                while ((actual < target) && (counter < _peerRoundRobin.Count))
                 {
-                    _peerRoundRobin.Enqueue(kp);
-                    counter++;
-                    if (_outgoingConnectionStrings.ContainsKey(kp.ConnectionString))
+                    if (_peerRoundRobin.TryDequeue(out var kp))
                     {
-                        if (_outgoingSockets.ContainsKey(_outgoingConnectionStrings[kp.ConnectionString]))
-                            continue;
+                        _peerRoundRobin.Enqueue(kp);
+                        counter++;
+                        if (_outgoingConnectionStrings.ContainsKey(kp.ConnectionString))
+                        {
+                            if (_outgoingSockets.ContainsKey(_outgoingConnectionStrings[kp.ConnectionString]))
+                                continue;
+                        }
+                        _logger.LogDebug($"Connecting to {kp.ConnectionString}");
+                        OnboardPeer(kp.ConnectionString);
+                        actual++;
                     }
-                    _logger.LogDebug($"Connecting to {kp.ConnectionString}");
-                    OnboardPeer(kp.ConnectionString);
-                    actual++;
-                }                
+                }
             }
         }
 
