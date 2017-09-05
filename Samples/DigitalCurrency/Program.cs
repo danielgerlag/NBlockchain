@@ -7,6 +7,7 @@ using NBlockchain.Interfaces;
 using NBlockchain.Models;
 using NBlockchain.Services.PeerDiscovery;
 using System;
+using System.Collections.Generic;
 
 namespace DigitalCurrency
 {
@@ -103,6 +104,14 @@ namespace DigitalCurrency
                     Console.WriteLine("Mining...");
                     _miner.Start(keys, false);
                     break;
+                case "peers":                    
+                    var peersIn = _network.GetPeersIn();
+                    var peersOut = _network.GetPeersOut();
+                    Console.WriteLine("Incoming peers");
+                    PrintPeerList(peersIn);
+                    Console.WriteLine("Outgoing peers");
+                    PrintPeerList(peersOut);
+                    break;
                 case "balance":
                     if (args.Length == 1)
                         Console.WriteLine($"Balance = {_txnRepo.GetAccountBalance(ownAddress)}");
@@ -145,11 +154,18 @@ namespace DigitalCurrency
             Console.WriteLine("help - prints this message");
             Console.WriteLine("mine-genesis - build the genesis block and start mining");
             Console.WriteLine("mine - start mining");
+            Console.WriteLine("peers - show connected peers");
             Console.WriteLine("balance - prints your balance");
             Console.WriteLine("balance [address] - prints balance of [address]");
             Console.WriteLine("send [address] [amount] - sends [amount] to [address]");
             Console.WriteLine("exit - end process");
             Console.WriteLine();
+        }
+
+        static void PrintPeerList(ICollection<ConnectedPeer> peers)
+        {
+            foreach (var item in peers)
+                Console.WriteLine($"{item.NodeId} - {item.Address}");
         }
     }
 }

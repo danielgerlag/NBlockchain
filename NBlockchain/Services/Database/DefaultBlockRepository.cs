@@ -36,7 +36,7 @@ namespace NBlockchain.Services.Database
 
         public Task<bool> HaveBlock(byte[] blockId)
         {            
-            var result = Blocks.Exists(x => x.Entity.Header.BlockId.SequenceEqual(blockId));
+            var result = Blocks.Exists(x => x.Entity.Header.BlockId == blockId);
             return Task.FromResult(result);
         }
 
@@ -51,28 +51,20 @@ namespace NBlockchain.Services.Database
             if (await IsEmpty())
                 return null;
 
-            var max = Blocks.Max<uint>(x => x.Entity.Header.Height).AsInt32;
-            var block = Blocks.FindOne(x => x.Entity.Header.Height == max);
+            var max = Blocks.Max<uint>(x => x.Entity.Header.Height).AsInt64;
+            var block = Blocks.Find(x => x.Entity.Header.Height == max).First();
             return await Task.FromResult(block?.Entity.Header);
         }
 
         public Task<Block> GetNextBlock(byte[] prevBlockId)
         {
-            var block = Blocks.FindOne(x => x.Entity.Header.PreviousBlock.SequenceEqual(prevBlockId));
+            var block = Blocks.FindOne(x => x.Entity.Header.PreviousBlock == prevBlockId);
             return Task.FromResult(block?.Entity);
         }
-
-        public async Task<long> GetGenesisBlockTime()
-        {
-            if (await IsEmpty())
-                return DateTime.UtcNow.Ticks;
-
-            return await Task.FromResult(Blocks.Min(x => x.Entity.Header.Timestamp));
-        }
-
+        
         public Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
         {
-            throw new NotImplementedException();
+            return Task.FromResult(0);
         }
     }
 }

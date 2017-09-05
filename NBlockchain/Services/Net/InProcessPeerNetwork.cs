@@ -100,5 +100,15 @@ namespace NBlockchain.Services.Net
         {
             Peers.Remove(this);
         }
+
+        public ICollection<ConnectedPeer> GetPeersIn()
+        {
+            throw new NotImplementedException();
+        }
+
+        public ICollection<ConnectedPeer> GetPeersOut()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

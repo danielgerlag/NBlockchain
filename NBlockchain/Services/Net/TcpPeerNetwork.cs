@@ -33,8 +33,8 @@ namespace NBlockchain.Services.Net
 
         private readonly ConcurrentQueue<KnownPeer> _peerRoundRobin = new ConcurrentQueue<KnownPeer>();
         private readonly ConcurrentDictionary<string, Guid> _outgoingConnectionStrings = new ConcurrentDictionary<string, Guid>();
-        private readonly ConcurrentDictionary<Guid, OutgoingPeer> _outgoingSockets = new ConcurrentDictionary<Guid, OutgoingPeer>();
-        private readonly ConcurrentDictionary<Guid, DateTime> _incomingPeerLastContact = new ConcurrentDictionary<Guid, DateTime>();
+        private readonly ConcurrentDictionary<Guid, OutgoingPeer> _outgoingPeers = new ConcurrentDictionary<Guid, OutgoingPeer>();
+        private readonly ConcurrentDictionary<Guid, ConnectedPeer> _incomingPeers = new ConcurrentDictionary<Guid, ConnectedPeer>();
 
         private readonly AutoResetEvent _incomingEvent = new AutoResetEvent(true);
 
@@ -90,7 +90,7 @@ namespace NBlockchain.Services.Net
 
                 var clientId = new Guid(message[0].Buffer);
                 var op = (MessageOp) (message[1].Buffer.First());
-                _incomingPeerLastContact[clientId] = DateTime.Now;
+                _incomingPeers[clientId] = new ConnectedPeer(clientId, e.Socket.Options.LastEndpoint);
 
                 switch (op)
                 {
@@ -112,6 +112,7 @@ namespace NBlockchain.Services.Net
                         break;
                     case MessageOp.Connect:
                         _logger.LogDebug("Recv connect from {0}", clientId);
+                        
                         RunProtected(_incomingEvent, () => 
                         {
                             _incomingSocket.SendMoreFrame(message[0].Buffer)
@@ -123,7 +124,7 @@ namespace NBlockchain.Services.Net
 
                     case MessageOp.Disconnect:
                         _logger.LogDebug("Recv disconnect from {0}", clientId);
-                        _incomingPeerLastContact.TryRemove(clientId, out var v);
+                        _incomingPeers.TryRemove(clientId, out var v);
                         break;
                 }
             }
@@ -158,7 +159,7 @@ namespace NBlockchain.Services.Net
                         await ProcessTransaction(message, serverId);
                         break;
                     case MessageOp.BlockRequest:
-                        await ProcessBlockRequest(message, _outgoingSockets[serverId].Socket, _outgoingSockets[serverId].ResetEvent, null);
+                        await ProcessBlockRequest(message, _outgoingPeers[serverId].Socket, _outgoingPeers[serverId].ResetEvent, null);
                         break;
                     case MessageOp.PeerShare:
                         if (IsSharablePeer(message[2].ConvertToString()))
@@ -167,8 +168,8 @@ namespace NBlockchain.Services.Net
 
                     case MessageOp.Identify:
                         _logger.LogDebug("Recv identify from {0}", serverId);
-                        _outgoingSockets[serverId] = new OutgoingPeer(e.Socket);
                         var peerConStr = message[2].ConvertToString();
+                        _outgoingPeers[serverId] = new OutgoingPeer(e.Socket, serverId, peerConStr);                        
                         _outgoingConnectionStrings[peerConStr] = serverId;
                         foreach (var prr in _peerRoundRobin.Where(x => x.ConnectionString == peerConStr).ToList())
                             prr.LastContact = DateTime.Now;
@@ -176,7 +177,7 @@ namespace NBlockchain.Services.Net
 
                     case MessageOp.Disconnect:
                         _logger.LogDebug("Recv disconnect from {0}", serverId);
-                        _outgoingSockets.TryRemove(serverId, out var sock);
+                        _outgoingPeers.TryRemove(serverId, out var sock);
                         _poller.Remove(e.Socket);
                         e.Socket.Close();                        
                         break;
@@ -231,7 +232,7 @@ namespace NBlockchain.Services.Net
                     var peerList = GetOutgoingPeers().Where(x => x != originId);
                     Parallel.ForEach(peerList, peerId =>
                     {
-                        SendBlock(_outgoingSockets[peerId].Socket, _outgoingSockets[peerId].ResetEvent, tail, null, message[3].Buffer, hopCount + 1);
+                        SendBlock(_outgoingPeers[peerId].Socket, _outgoingPeers[peerId].ResetEvent, tail, null, message[3].Buffer, hopCount + 1);
                     });
                 });
             }
@@ -250,7 +251,7 @@ namespace NBlockchain.Services.Net
                     var peerList = GetOutgoingPeers().Where(x => x != originId);
                     Parallel.ForEach(peerList, peerId =>
                     {
-                        SendTxn(_outgoingSockets[peerId].Socket, _outgoingSockets[peerId].ResetEvent, null, message[3].Buffer, hopCount + 1);
+                        SendTxn(_outgoingPeers[peerId].Socket, _outgoingPeers[peerId].ResetEvent, null, message[3].Buffer, hopCount + 1);
                     });
                 });
 
@@ -312,17 +313,17 @@ namespace NBlockchain.Services.Net
 
             foreach (var peerId in GetOutgoingPeers())
             {
-                RunProtected(_outgoingSockets[peerId].ResetEvent, () =>
+                RunProtected(_outgoingPeers[peerId].ResetEvent, () =>
                 {
-                    _outgoingSockets[peerId].Socket
+                    _outgoingPeers[peerId].Socket
                         .TrySendFrame(ConvertOp(MessageOp.Disconnect));
 
-                    _poller.Remove(_outgoingSockets[peerId].Socket);
-                    _outgoingSockets[peerId].Socket.Close();
+                    _poller.Remove(_outgoingPeers[peerId].Socket);
+                    _outgoingPeers[peerId].Socket.Close();
                 });                
             }
 
-            _outgoingSockets.Clear();
+            _outgoingPeers.Clear();
 
             _poller.Stop();
             _poller.Remove(_incomingSocket);
@@ -376,7 +377,7 @@ namespace NBlockchain.Services.Net
 
         private void ConnectOut()
         {
-            var target = (TargetOutgoingCount - _outgoingSockets.Count);
+            var target = (TargetOutgoingCount - _outgoingPeers.Count);
             if (target <= 0)
                 return;
 
@@ -392,7 +393,7 @@ namespace NBlockchain.Services.Net
                         counter++;
                         if (_outgoingConnectionStrings.ContainsKey(kp.ConnectionString))
                         {
-                            if (_outgoingSockets.ContainsKey(_outgoingConnectionStrings[kp.ConnectionString]))
+                            if (_outgoingPeers.ContainsKey(_outgoingConnectionStrings[kp.ConnectionString]))
                                 continue;
                         }
                         _logger.LogDebug($"Connecting to {kp.ConnectionString}");
@@ -432,7 +433,7 @@ namespace NBlockchain.Services.Net
             {
                 Parallel.ForEach(outgoing, peerId =>
                 {
-                    SendBlock(_outgoingSockets[peerId].Socket, _outgoingSockets[peerId].ResetEvent, true, null, data, 0);
+                    SendBlock(_outgoingPeers[peerId].Socket, _outgoingPeers[peerId].ResetEvent, true, null, data, 0);
                 });
             });
         }
@@ -483,7 +484,7 @@ namespace NBlockchain.Services.Net
                 var outgoing = GetOutgoingPeers();
                 Parallel.ForEach(outgoing, peerId =>
                 {
-                    SendTxn(_outgoingSockets[peerId].Socket, _outgoingSockets[peerId].ResetEvent, null, data, 0);
+                    SendTxn(_outgoingPeers[peerId].Socket, _outgoingPeers[peerId].ResetEvent, null, data, 0);
                 });
             });
         }
@@ -544,9 +545,9 @@ namespace NBlockchain.Services.Net
                 foreach (var peerId in outgoing)
                 {
                     _logger.LogDebug($"Requesting block from outgoing peer {peerId}");
-                    RunProtected(_outgoingSockets[peerId].ResetEvent, () => 
+                    RunProtected(_outgoingPeers[peerId].ResetEvent, () => 
                     {
-                        _outgoingSockets[peerId].Socket
+                        _outgoingPeers[peerId].Socket
                             .SendMoreFrame(ConvertOp(MessageOp.BlockRequest))
                             .TrySendFrame(blockId);
                     });                    
@@ -566,12 +567,12 @@ namespace NBlockchain.Services.Net
 
         private ICollection<Guid> GetIncomingPeers()
         {
-            return _incomingPeerLastContact.Select(x => x.Key).ToList();
+            return _incomingPeers.Select(x => x.Key).ToList();
         }
 
         private ICollection<Guid> GetOutgoingPeers()
         {
-            return _outgoingSockets.Keys;
+            return _outgoingPeers.Keys;
         }
 
         private void AdvertiseToPeers()
@@ -579,11 +580,18 @@ namespace NBlockchain.Services.Net
             foreach (var ds in _discoveryServices)
                 Task.Factory.StartNew(() => 
                 {
-                    if (_internalConnsctionString != null)
-                        ds.AdvertiseLocal(_internalConnsctionString);
+                    try
+                    {
+                        if (_internalConnsctionString != null)
+                            ds.AdvertiseLocal(_internalConnsctionString);
 
-                    if (_externalConnsctionString != null)
-                        ds.AdvertiseGlobal(_externalConnsctionString);
+                        if (_externalConnsctionString != null)
+                            ds.AdvertiseGlobal(_externalConnsctionString);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex.Message);
+                    }
                 });
         }
 
@@ -662,18 +670,32 @@ namespace NBlockchain.Services.Net
             return result;
         }
 
-        enum MessageOp { Disconnect = 0, Tail = 1, Block = 2, Txn = 3, BlockRequest = 4, PeerShare = 5, Connect = 6, Identify = 7 }
-        
-        private class OutgoingPeer
+        public ICollection<ConnectedPeer> GetPeersIn()
         {
-            public NetMQSocket Socket { get; set; }
-            public AutoResetEvent ResetEvent { get; set; }
+            return _incomingPeers.Values;
+        }
 
-            public OutgoingPeer(NetMQSocket socket)
-            {
-                Socket = socket;
-                ResetEvent = new AutoResetEvent(true);
-            }
+        public ICollection<ConnectedPeer> GetPeersOut()
+        {
+            return _outgoingPeers.Values.Cast<ConnectedPeer>().ToList();
+        }
+
+        enum MessageOp { Disconnect = 0, Tail = 1, Block = 2, Txn = 3, BlockRequest = 4, PeerShare = 5, Connect = 6, Identify = 7 }
+                
+    }
+
+
+    internal class OutgoingPeer : ConnectedPeer
+    {        
+        public NetMQSocket Socket { get; set; }
+        public AutoResetEvent ResetEvent { get; set; }
+
+        public OutgoingPeer(NetMQSocket socket, Guid nodeId, string address)
+            : base(nodeId, address)
+        {            
+            Socket = socket;            
+            ResetEvent = new AutoResetEvent(true);
         }
     }
+        
 }

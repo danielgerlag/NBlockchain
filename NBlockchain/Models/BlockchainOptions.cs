@@ -70,6 +70,11 @@ namespace NBlockchain.Models
             Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>()));
         }
 
+        public void UseDataConnection(string connectionString)
+        {
+            Services.AddSingleton<IDataConnection>(sp => new DataConnection(connectionString));
+        }
+
         public void UseParameters<T>()
             where T : INetworkParameters
         {
@@ -151,8 +156,7 @@ namespace NBlockchain.Models
 
             AddDefault<IDateTimeProvider, DateTimeProvider>(ServiceLifetime.Singleton);
             AddDefault<IDifficultyCalculator, DifficultyCalculator>(ServiceLifetime.Singleton);
-            //AddDefault<IBuildQueue, BuildQueue>(ServiceLifetime.Singleton);
-
+            
             AddDefault<IOwnAddressResolver, OwnAddressResolver>(ServiceLifetime.Singleton);
 
             AddDefault<IPendingTransactionList, PendingTransactionList>(ServiceLifetime.Singleton);

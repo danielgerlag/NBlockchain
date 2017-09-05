@@ -145,13 +145,14 @@ namespace ScratchPad
             services.AddBlockchain(x =>
             {
                 //x.UseMongoDB(@"mongodb://localhost:27017", db)
-                //x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
+                x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
                 x.UseTcpPeerNetwork(port);
                 x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peers));
                 //x.UseMulticastDiscovery("test", "224.100.0.1", 8088);
+                //x.UseDataConnection("test.db");
                 x.AddTransactionType<TestTransaction>();
                 x.AddTransactionType<CoinbaseTransaction>();
-                //x.AddTransactionRule<TestTransactionValidator>();
+                x.AddTransactionRule<TestTransactionValidator>();
                 x.AddTransactionRule<CoinbaseTransactionValidator>();
                 x.UseBlockbaseProvider<TestBlockbaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
