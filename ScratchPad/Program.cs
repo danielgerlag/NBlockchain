@@ -38,7 +38,7 @@ namespace ScratchPad
                 var addressEncoder = node1.GetService<IAddressEncoder>();
                 var nodeAddr = addressEncoder.EncodeAddress(node1Keys.PublicKey, 0);
                 Console.WriteLine("sending txn...");
-                SendTxn(miner1, keys1, nodeAddr, 15);
+                SendTxn(miner1, keys1, nodeAddr, 5);
             });
 
 
@@ -101,12 +101,11 @@ namespace ScratchPad
 
         private static decimal GetBalance(IServiceProvider sp, KeyPair keys)
         {
-            //var repo = sp.GetService<ICustomTransactionRepository>();            
-            //var addressEncoder = sp.GetService<IAddressEncoder>();
-            //var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
+            var repo = sp.GetService<ICustomTransactionRepository>();
+            var addressEncoder = sp.GetService<IAddressEncoder>();
+            var address = addressEncoder.EncodeAddress(keys.PublicKey, 0);
 
-            //return repo.GetAccountBalance(address);
-            return 0;
+            return repo.GetAccountBalance(address);
         }
 
         private static async void CheckBalance(string name, IServiceProvider sp, KeyPair keys) 
@@ -149,7 +148,7 @@ namespace ScratchPad
                 x.UseTcpPeerNetwork(port);
                 x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peers));
                 //x.UseMulticastDiscovery("test", "224.100.0.1", 8088);
-                //x.UseDataConnection("test.db");
+                //x.UseDataConnection($"{db}.db");
                 x.AddTransactionType<TestTransaction>();
                 x.AddTransactionType<CoinbaseTransaction>();
                 x.AddTransactionRule<TestTransactionValidator>();

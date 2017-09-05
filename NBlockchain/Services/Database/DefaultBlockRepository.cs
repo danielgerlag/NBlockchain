@@ -16,7 +16,7 @@ namespace NBlockchain.Services.Database
         private readonly ILogger _logger;
         private readonly IDataConnection _connection;
 
-        protected LiteCollection<PersistedEntity<Block, long>> Blocks => _connection.Database.GetCollection<PersistedEntity<Block, long>>("Blocks");
+        protected LiteCollection<PersistedBlock> Blocks => _connection.Database.GetCollection<PersistedBlock>("Blocks");
 
         public DefaultBlockRepository(ILoggerFactory loggerFactory, IDataConnection connection)
         {
@@ -30,7 +30,16 @@ namespace NBlockchain.Services.Database
 
         public Task AddBlock(Block block)
         {
-            Blocks.Insert(new PersistedEntity<Block, long>(block));
+            var persisted = new PersistedBlock(block);
+            var prevHeader = Blocks
+                .Find(x => x.Entity.Header.BlockId == block.Header.PreviousBlock)
+                .Select(x => x.Entity.Header)
+                .FirstOrDefault();
+
+            if (prevHeader != null)
+                persisted.Statistics.BlockTime = Convert.ToInt32(TimeSpan.FromTicks(block.Header.Timestamp - prevHeader.Timestamp).TotalSeconds);
+
+            Blocks.Insert(persisted);
             return Task.CompletedTask;
         }
 
@@ -52,7 +61,7 @@ namespace NBlockchain.Services.Database
                 return null;
 
             var max = Blocks.Max<uint>(x => x.Entity.Header.Height).AsInt64;
-            var block = Blocks.Find(x => x.Entity.Header.Height == max).First();
+            var block = Blocks.Find(Query.EQ("Entity.Header.Height", max)).First();
             return await Task.FromResult(block?.Entity.Header);
         }
 
@@ -64,7 +73,15 @@ namespace NBlockchain.Services.Database
         
         public Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
         {
-            return Task.FromResult(0);
+            var startTicks = startUtc.Ticks;
+            var endTicks = endUtc.Ticks;
+            
+            var sample = Blocks.Find(Query.And(Query.LT("Entity.Header.Timestamp", endTicks), Query.GT("Entity.Header.Timestamp", startTicks)));
+            if (sample.Count() == 0)
+                return Task.FromResult(0);
+
+            var result = Convert.ToInt32(sample.Average(x => x.Statistics.BlockTime));
+            return Task.FromResult(result);
         }
     }
 }

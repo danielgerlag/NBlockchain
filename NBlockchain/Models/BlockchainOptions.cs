@@ -144,11 +144,11 @@ namespace NBlockchain.Models
             AddDefault<IBlockVerifier, BlockVerifier>(ServiceLifetime.Transient);
             AddDefault<IPeerNetwork, InProcessPeerNetwork>(ServiceLifetime.Singleton);
 
-            //AddDefault<IDataConnection, DataConnection>(ServiceLifetime.Singleton);
-            //AddDefault<IBlockRepository, DefaultBlockRepository>(ServiceLifetime.Singleton);
+            AddDefault<IDataConnection, DataConnection>(ServiceLifetime.Singleton);
+            AddDefault<IBlockRepository, DefaultBlockRepository>(ServiceLifetime.Singleton);
             //AddDefault<IPeerDiscoveryService, DefaultPeerRepository>(ServiceLifetime.Singleton);
 
-            AddDefault<IBlockRepository, InMemoryBlockRepository>(ServiceLifetime.Singleton);
+            //AddDefault<IBlockRepository, InMemoryBlockRepository>(ServiceLifetime.Singleton);
 
             AddDefault<INodeHost, NodeHost>(ServiceLifetime.Singleton);
             AddDefault<IBlockReceiver>(ServiceLifetime.Singleton, sp => sp.GetService<INodeHost>());

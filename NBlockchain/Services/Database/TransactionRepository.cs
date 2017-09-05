@@ -16,7 +16,7 @@ namespace NBlockchain.Services.Database
         protected readonly ILogger Logger;
         protected readonly IDataConnection Connection;
 
-        protected LiteCollection<PersistedEntity<Block, long>> Blocks => Connection.Database.GetCollection<PersistedEntity<Block, long>>("Blocks");
+        protected LiteCollection<PersistedBlock> Blocks => Connection.Database.GetCollection<PersistedBlock>("Blocks");
 
         protected TransactionRepository(ILoggerFactory loggerFactory, IDataConnection connection)
         {

@@ -21,7 +21,7 @@ namespace NBlockchain.Services.Database
             _logger = loggerFactory.CreateLogger<DefaultPeerRepository>();
         }
 
-        protected LiteCollection<PersistedEntity<KnownPeer, long>> Peers => _connection.Database.GetCollection<PersistedEntity<KnownPeer, long>>("Peers");
+        protected LiteCollection<PersistedEntity<KnownPeer, ObjectId>> Peers => _connection.Database.GetCollection<PersistedEntity<KnownPeer, ObjectId>>("Peers");
 
         public async Task<ICollection<KnownPeer>> DiscoverPeers()
         {
@@ -42,7 +42,7 @@ namespace NBlockchain.Services.Database
                 }
                 else
                 {
-                    Peers.Insert(new PersistedEntity<KnownPeer, long>(peer));
+                    Peers.Insert(new PersistedEntity<KnownPeer, ObjectId>(peer));
                 }
             }
 

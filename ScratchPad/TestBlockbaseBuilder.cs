@@ -18,7 +18,7 @@ namespace ScratchPad
         {
             return new CoinbaseTransaction()
             {
-                Amount = -50
+                Amount = -100
             };
         }
     }

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using LiteDB;
+using Microsoft.Extensions.Logging;
 using NBlockchain.Interfaces;
 using NBlockchain.Models;
 using NBlockchain.Services.Database;
@@ -18,7 +19,7 @@ namespace ScratchPad
         public decimal GetAccountBalance(string account)
         {
             var totalOut = Blocks
-                .Find(x => x.Entity.Transactions.Count(y => y.Originator == account) > 0)
+                .Find(Query.EQ("Entity.Transactions.Originator", account))
                 .SelectMany(x => x.Entity.Transactions)
                 .Where(x => x.Originator == account)
                 .Select(x => x.Transaction)
@@ -26,7 +27,9 @@ namespace ScratchPad
                 .Sum(x => x.Amount);
                         
 
-            var totalIn = Blocks.Find(x => x.Entity.Transactions.Select(y => y.Transaction).OfType<TestTransaction>().Count(y => y.Destination == account) > 0)
+            var totalIn = Blocks
+                //.Find(x => x.Entity.Transactions.Select(y => y.Transaction).OfType<TestTransaction>().Count(y => y.Destination == account) > 0)
+                .Find(Query.EQ("Entity.Transactions.Transaction.Destination", account))
                 .SelectMany(x => x.Entity.Transactions)                
                 .Select(x => x.Transaction)
                 .OfType<TestTransaction>()
