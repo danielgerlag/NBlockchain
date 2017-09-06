@@ -17,6 +17,7 @@ namespace NBlockchain.Services.Database
         private readonly IDataConnection _connection;
 
         protected LiteCollection<PersistedBlock> Blocks => _connection.Database.GetCollection<PersistedBlock>("Blocks");
+        protected LiteCollection<PersistedTransaction> Txns => _connection.Database.GetCollection<PersistedTransaction>("Txns");
 
         public DefaultBlockRepository(ILoggerFactory loggerFactory, IDataConnection connection)
         {
@@ -26,6 +27,8 @@ namespace NBlockchain.Services.Database
             Blocks.EnsureIndex(x => x.Entity.Header.BlockId);
             Blocks.EnsureIndex(x => x.Entity.Header.PreviousBlock);
             Blocks.EnsureIndex(x => x.Entity.Header.Height);
+            Txns.EnsureIndex(x => x.BlockId);
+            Txns.EnsureIndex(x => x.Entity.Originator);
         }
 
         public Task AddBlock(Block block)
@@ -40,6 +43,12 @@ namespace NBlockchain.Services.Database
                 persisted.Statistics.BlockTime = Convert.ToInt32(TimeSpan.FromTicks(block.Header.Timestamp - prevHeader.Timestamp).TotalSeconds);
 
             Blocks.Insert(persisted);
+
+
+            var pt = block.Transactions.Select(txn => new PersistedTransaction(block.Header.BlockId, txn)).ToList();
+
+            Txns.InsertBulk(pt);
+
             return Task.CompletedTask;
         }
 
@@ -67,8 +76,19 @@ namespace NBlockchain.Services.Database
 
         public Task<Block> GetNextBlock(byte[] prevBlockId)
         {
-            var block = Blocks.FindOne(x => x.Entity.Header.PreviousBlock == prevBlockId);
-            return Task.FromResult(block?.Entity);
+            var blockHeader = Blocks.FindOne(x => x.Entity.Header.PreviousBlock == prevBlockId);
+
+            if (blockHeader == null)
+                return Task.FromResult<Block>(null);
+
+            var result = new Block();
+            result.Header = blockHeader.Entity.Header;
+            result.MerkleRootNode = blockHeader.Entity.MerkleRootNode;
+
+            var txns = Txns.Find(Query.EQ("BlockId", blockHeader.Entity.Header.BlockId));
+            result.Transactions = txns.Select(x => x.Entity).ToList();
+
+            return Task.FromResult(result);
         }
         
         public Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)

@@ -18,20 +18,16 @@ namespace ScratchPad
                 
         public decimal GetAccountBalance(string account)
         {
-            var totalOut = Blocks
-                .Find(Query.EQ("Entity.Transactions.Originator", account))
-                .SelectMany(x => x.Entity.Transactions)
-                .Where(x => x.Originator == account)
-                .Select(x => x.Transaction)
+            var totalOut = Transactions
+                .Find(Query.EQ("Entity.Originator", account))
+                .Select(x => x.Entity.Transaction)
                 .OfType<Transaction>()
                 .Sum(x => x.Amount);
                         
 
-            var totalIn = Blocks
-                //.Find(x => x.Entity.Transactions.Select(y => y.Transaction).OfType<TestTransaction>().Count(y => y.Destination == account) > 0)
-                .Find(Query.EQ("Entity.Transactions.Transaction.Destination", account))
-                .SelectMany(x => x.Entity.Transactions)                
-                .Select(x => x.Transaction)
+            var totalIn = Transactions
+                .Find(Query.EQ("Entity.Transaction.Destination", account))
+                .Select(x => x.Entity.Transaction)
                 .OfType<TestTransaction>()
                 .Where(x => x.Destination == account)
                 .Sum(x => x.Amount);
