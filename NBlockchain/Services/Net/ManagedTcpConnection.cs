@@ -11,9 +11,19 @@ namespace NBlockchain.Services.Net
 {
     public class ManagedTcpConnection
     {
+        private const byte NetworkQualifier = 0;
+        private const byte MessageQualifier = 1;
+
+        private const byte IdentifyCommand = 0;
+        private const byte PingCommand = 1;
+
+
         private readonly byte[] _serviceIdentifier;
         private readonly TcpClient _client;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
+        private readonly Guid _localId = Guid.NewGuid();
+        private Guid? _remoteId = null;
+        private DateTime? _lastContact;
 
         public event ReceiveMessage OnReceiveMessage;
         public event Disconnect OnDisconnect;
@@ -37,20 +47,27 @@ namespace NBlockchain.Services.Net
         {
             _client.Connect(host, port);
             Task.Factory.StartNew(Poll);
+            Send(NetworkQualifier, IdentifyCommand, _localId.ToByteArray());
         }
 
         public void Send(byte command, byte[] data)
         {
+            Send(MessageQualifier, command, data);
+        }
+
+        public void Send(byte qualifier, byte command, byte[] data)
+        {
             _resetEvent.WaitOne();
             try
             {
-                _client.Client.SendTimeout = 1000;
-                var headerLength = _serviceIdentifier.Length + 5;
+                //_client.Client.SendTimeout = 1000;
+                var headerLength = _serviceIdentifier.Length + 6;
                 var lenBuffer = BitConverter.GetBytes(data.Length);
                 var message = new byte[headerLength + data.Length];
                 _serviceIdentifier.CopyTo(message, 0);
                 lenBuffer.CopyTo(message, _serviceIdentifier.Length);
-                message[_serviceIdentifier.Length + 4] = command;
+                message[_serviceIdentifier.Length + 4] = qualifier;
+                message[_serviceIdentifier.Length + 5] = command;
                 data.CopyTo(message, _serviceIdentifier.Length + 5);
                 _client.Client.Send(message);
             }
@@ -86,10 +103,20 @@ namespace NBlockchain.Services.Net
             _client.Close();
         }
 
+        private void Maintain(object state)
+        {
+            if (_client.Connected)
+            {
+                Send(NetworkQualifier, PingCommand, new byte[0]);
+            }
+        }
+
         private async void Poll()
         {
             //_client.ReceiveTimeout = 3000;
-            var headerLength = _serviceIdentifier.Length + 5;
+            var headerLength = _serviceIdentifier.Length + 6;
+            var timer = new Timer(Maintain, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(120));
+
             while (_client.Connected)
             {
                 try
@@ -99,21 +126,30 @@ namespace NBlockchain.Services.Net
                     if (_client.Client.Receive(header) != headerLength)
                         continue;
 
-                    var servIdSegment = new ArraySegment<byte>(header, 0, _serviceIdentifier.Length);
-                    var lengthSegment = new ArraySegment<byte>(header, _serviceIdentifier.Length, 4);
-                    var commandSegment = new ArraySegment<byte>(header, _serviceIdentifier.Length + 4, 1);
+                    var servIdSegment = new ArraySegment<byte>(header, 0, _serviceIdentifier.Length).ToArray();
+                    var lengthSegment = new ArraySegment<byte>(header, _serviceIdentifier.Length, 4).ToArray();
+                    var commandSegment = new ArraySegment<byte>(header, _serviceIdentifier.Length + 4, 2).ToArray();
 
-                    var msgLength = BitConverter.ToInt32(lengthSegment.ToArray(), 0);
+                    var msgLength = BitConverter.ToInt32(lengthSegment, 0);
                     var msgBuffer = new byte[msgLength];
 
-                    if (!servIdSegment.ToArray().SequenceEqual(_serviceIdentifier))
+                    if (!servIdSegment.SequenceEqual(_serviceIdentifier))
                         continue;
 
                     if (_client.Client.Receive(msgBuffer) != msgLength)
                         continue;
 
+                    _lastContact = DateTime.Now;
 
-                    var evtTask = Task.Factory.StartNew(() => OnReceiveMessage?.Invoke(this, commandSegment.ToArray()[0], msgBuffer));
+                    switch (commandSegment[0])
+                    {
+                        case NetworkQualifier:
+                            ProcessNetworkCommand(commandSegment[1], msgBuffer);
+                            break;
+                        default:
+                            var evtTask = Task.Factory.StartNew(() => OnReceiveMessage?.Invoke(this, commandSegment[1], msgBuffer));
+                            break;
+                    }
                 }
                 catch (SocketException ex)
                 {
@@ -136,6 +172,19 @@ namespace NBlockchain.Services.Net
                     Console.WriteLine($"EXCEPTION: {ex.Message}");
                     await Task.Delay(1000);
                 }
+            }
+            timer.Dispose();
+        }
+
+        private void ProcessNetworkCommand(byte command, byte[] data)
+        {
+            switch (command)
+            {
+                case IdentifyCommand:
+                    _remoteId = new Guid(data);
+                    break;
+                case PingCommand:
+                    break;
             }
         }
     }
