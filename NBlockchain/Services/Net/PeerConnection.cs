@@ -26,17 +26,22 @@ namespace NBlockchain.Services.Net
         private DateTime? _lastContact;
 
         public event ReceiveMessage OnReceiveMessage;
-        public event Disconnect OnDisconnect;
+        public event PeerEvent OnDisconnect;
+        public event PeerEvent OnIdentify;
 
         public Guid RemoteId => _remoteId;
 
         public EndPoint RemoteEndPoint => _client.Client.RemoteEndPoint;
+        public bool Outgoing { get; private set; }
+        public string ConnectionString { get; private set; }
+        public DateTime? LastContact => _lastContact;
 
         public PeerConnection(byte[] serviceIdentifier, Guid nodeId)
         {
             _client = new TcpClient();
             _localId = nodeId;
             _serviceIdentifier = serviceIdentifier;
+            Outgoing = true;
         }
 
         public PeerConnection(byte[] serviceIdentifier, Guid nodeId, TcpClient client)
@@ -44,12 +49,18 @@ namespace NBlockchain.Services.Net
             _client = client;
             _localId = nodeId;
             _serviceIdentifier = serviceIdentifier;
+            Outgoing = false;            
             Task.Factory.StartNew(Poll);
         }
 
-        public void Connect(string host, int port)
+        public void Connect(string connectionString)
         {
-            _client.Connect(host, port);
+            ConnectionString = connectionString;
+            var uri = new Uri(connectionString);
+            if (uri.Scheme != "tcp")
+                throw new InvalidOperationException("Only tcp connections are possible");
+
+            _client.Connect(uri.Host, uri.Port);
             Task.Factory.StartNew(Poll);
             Send(NetworkQualifier, IdentifyCommand, _localId.ToByteArray());
         }
@@ -120,7 +131,7 @@ namespace NBlockchain.Services.Net
             //_client.ReceiveTimeout = 3000;
             var headerLength = _serviceIdentifier.Length + 6;
             var timer = new Timer(Maintain, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(120));
-
+            Send(NetworkQualifier, IdentifyCommand, _localId.ToByteArray());
             while (_client.Connected)
             {
                 try
@@ -186,6 +197,7 @@ namespace NBlockchain.Services.Net
             {
                 case IdentifyCommand:
                     _remoteId = new Guid(data);
+                    OnIdentify?.Invoke(this);
                     break;
                 case PingCommand:
                     break;
@@ -194,6 +206,6 @@ namespace NBlockchain.Services.Net
     }
 
     public delegate void ReceiveMessage(PeerConnection sender, byte command, byte[] data);
-    public delegate void Disconnect(PeerConnection sender);
+    public delegate void PeerEvent(PeerConnection sender);
 
 }
