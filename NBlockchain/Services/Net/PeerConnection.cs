@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace NBlockchain.Services.Net
 {
-    public class ManagedTcpConnection
+    public class PeerConnection
     {
         private const byte NetworkQualifier = 0;
         private const byte MessageQualifier = 1;
@@ -21,24 +21,28 @@ namespace NBlockchain.Services.Net
         private readonly byte[] _serviceIdentifier;
         private readonly TcpClient _client;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
-        private readonly Guid _localId = Guid.NewGuid();
-        private Guid? _remoteId = null;
+        private readonly Guid _localId;
+        private Guid _remoteId = Guid.NewGuid();
         private DateTime? _lastContact;
 
         public event ReceiveMessage OnReceiveMessage;
         public event Disconnect OnDisconnect;
 
+        public Guid RemoteId => _remoteId;
+
         public EndPoint RemoteEndPoint => _client.Client.RemoteEndPoint;
 
-        public ManagedTcpConnection(byte[] serviceIdentifier)
+        public PeerConnection(byte[] serviceIdentifier, Guid nodeId)
         {
             _client = new TcpClient();
+            _localId = nodeId;
             _serviceIdentifier = serviceIdentifier;
         }
 
-        public ManagedTcpConnection(TcpClient client, byte[] serviceIdentifier)
+        public PeerConnection(byte[] serviceIdentifier, Guid nodeId, TcpClient client)
         {
             _client = client;
+            _localId = nodeId;
             _serviceIdentifier = serviceIdentifier;
             Task.Factory.StartNew(Poll);
         }
@@ -189,7 +193,7 @@ namespace NBlockchain.Services.Net
         }
     }
 
-    public delegate void ReceiveMessage(ManagedTcpConnection sender, byte command, byte[] data);
-    public delegate void Disconnect(ManagedTcpConnection sender);
+    public delegate void ReceiveMessage(PeerConnection sender, byte command, byte[] data);
+    public delegate void Disconnect(PeerConnection sender);
 
 }
