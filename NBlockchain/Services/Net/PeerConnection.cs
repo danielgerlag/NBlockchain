@@ -83,7 +83,7 @@ namespace NBlockchain.Services.Net
                 lenBuffer.CopyTo(message, _serviceIdentifier.Length);
                 message[_serviceIdentifier.Length + 4] = qualifier;
                 message[_serviceIdentifier.Length + 5] = command;
-                data.CopyTo(message, _serviceIdentifier.Length + 5);
+                data.CopyTo(message, headerLength);
                 _client.Client.Send(message);
             }
             catch (SocketException ex)
