@@ -15,13 +15,13 @@ namespace NBlockchain.Models
 
         public byte[] Signature { get; set; }
 
-        public object Transaction { get; set; }
+        public BlockTransaction Transaction { get; set; }
 
         public TransactionEnvelope()
         {
         }
 
-        public TransactionEnvelope(object transaction)
+        public TransactionEnvelope(BlockTransaction transaction)
         {
             Transaction = transaction;
         }

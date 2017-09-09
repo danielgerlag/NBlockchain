@@ -9,6 +9,7 @@ using Newtonsoft.Json.Linq;
 namespace NBlockchain.Services
 {
     public abstract class BlockbaseTransactionBuilder<T> : IBlockbaseTransactionBuilder
+        where T : BlockTransaction
     {
 
         private readonly IAddressEncoder _addressEncoder;

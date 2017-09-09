@@ -4,10 +4,12 @@ using System.Reflection;
 using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
+using MongoDB.Bson.IO;
 using MongoDB.Driver;
 using NBlockchain.MongoDB.Models;
 using NBlockchain.Interfaces;
 using NBlockchain.Models;
+using System.IO;
 
 namespace NBlockchain.MongoDB.Services
 {
@@ -32,10 +34,23 @@ namespace NBlockchain.MongoDB.Services
                     var attr = type.GetTypeInfo().GetCustomAttribute<TransactionTypeAttribute>();
                     if (attr != null)
                     {
-                        BsonSerializer.RegisterDiscriminator(type, new BsonString(attr.TypeId));
+                        //BsonSerializer.RegisterDiscriminator(type, new BsonString(attr.TypeId));
+                        BsonSerializer.RegisterDiscriminator(type, TypeNameDiscriminator.GetDiscriminator(type));
+
+                        //hack for dodgy mongo driver
+                        IBsonWriter w = new BsonBinaryWriter(new MemoryStream());
+                        var constr = type.GetConstructor(new Type[0]);                        
+                        BsonSerializer.Serialize(w, type, constr.Invoke(null));
                     }
                 }
             }
+
+            //BsonSerializer.RegisterDiscriminatorConvention(typeof(BlockTransaction), StandardDiscriminatorConvention.Scalar);
+
+            
+            //TypeNameDiscriminator.GetDiscriminator
+            //TypeNameDiscriminator.
+            //BsonSerializer.RegisterDiscriminatorConvention(typeof(object), ObjectDiscriminatorConvention.Instance);
             //BsonSerializer.RegisterDiscriminator(t, t.FullName));
         }
 

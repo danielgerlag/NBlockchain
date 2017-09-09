@@ -24,10 +24,13 @@ namespace NBlockchain.Services.Net
         private readonly Guid _localId;
         private Guid _remoteId = Guid.NewGuid();
         private DateTime? _lastContact;
+        private CancellationTokenSource _cancelToken = new CancellationTokenSource();
 
         public event ReceiveMessage OnReceiveMessage;
         public event PeerEvent OnDisconnect;
         public event PeerEvent OnIdentify;
+        public event PeerEvent OnUnresponsive;
+        public event PeerException OnPeerException;
 
         public Guid RemoteId => _remoteId;
 
@@ -35,7 +38,7 @@ namespace NBlockchain.Services.Net
         public bool Outgoing { get; private set; }
         public string ConnectionString { get; private set; }
         public DateTime? LastContact => _lastContact;
-
+        
         public PeerConnection(byte[] serviceIdentifier, Guid nodeId)
         {
             _client = new TcpClient();
@@ -97,15 +100,16 @@ namespace NBlockchain.Services.Net
                     case SocketError.NetworkDown:
                     case SocketError.NotConnected:
                     case SocketError.Shutdown:
+                        _cancelToken.Cancel();
                         OnDisconnect?.Invoke(this);
+                        Disconnect();
                         break;
 
                 }
             }
             catch (Exception ex)
             {
-
-                //($"SEND ERR: {ex.Message}");
+                OnPeerException?.Invoke(this, ex);
             }
             finally
             {
@@ -115,6 +119,7 @@ namespace NBlockchain.Services.Net
 
         public void Disconnect()
         {
+            _cancelToken.Cancel();
             //_client.Client.(false);
             //_client.Close();
             
@@ -128,6 +133,7 @@ namespace NBlockchain.Services.Net
             {
                 if (_lastContact < (DateTime.Now.AddMinutes(-10)))
                 {
+                    OnUnresponsive?.Invoke(this);
                     Disconnect();
                 }
                 else
@@ -140,10 +146,11 @@ namespace NBlockchain.Services.Net
         private async void Poll()
         {
             //_client.ReceiveTimeout = 3000;
+            _cancelToken = new CancellationTokenSource();
             var headerLength = _serviceIdentifier.Length + 6;
             var timer = new Timer(Maintain, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(120));
             Send(NetworkQualifier, IdentifyCommand, _localId.ToByteArray());
-            while (_client.Connected)
+            while ((_client.Connected) && (!_cancelToken.IsCancellationRequested))
             {
                 try
                 {
@@ -188,14 +195,15 @@ namespace NBlockchain.Services.Net
                         case SocketError.NetworkDown:
                         case SocketError.NotConnected:
                         case SocketError.Shutdown:
+                            _cancelToken.Cancel();
                             OnDisconnect?.Invoke(this);
-                            return;
+                            Disconnect();
+                            break;
                     }
                 }
                 catch (Exception ex)
                 {
-                    //log
-                    //Console.WriteLine($"EXCEPTION: {ex.Message}");
+                    OnPeerException?.Invoke(this, ex);
                     await Task.Delay(1000);
                 }
             }
@@ -218,5 +226,6 @@ namespace NBlockchain.Services.Net
 
     public delegate void ReceiveMessage(PeerConnection sender, byte command, byte[] data);
     public delegate void PeerEvent(PeerConnection sender);
+    public delegate void PeerException(PeerConnection sender, Exception exception);
 
 }

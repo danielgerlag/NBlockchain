@@ -6,7 +6,7 @@ using System.Text;
 namespace ScratchPad
 {
     
-    public class Transaction
+    public class Transaction : BlockTransaction
     {
         public int Amount { get; set; }
     }

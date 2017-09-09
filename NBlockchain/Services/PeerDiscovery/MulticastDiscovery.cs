@@ -39,6 +39,7 @@ namespace NBlockchain.Services.PeerDiscovery
 
         public async Task AdvertiseLocal(string connectionString)
         {
+            _logger.LogInformation($"Advertising to peers {connectionString}");
             if (_advertiseTask != null)
             {
                 _advertiseCts.Cancel();
@@ -64,56 +65,65 @@ namespace NBlockchain.Services.PeerDiscovery
                             await udpClient.SendAsync(data, data.Length, ipEndPoint);
                             await Task.Delay(_interval);
                         }
-                        //udpClient.Close();
+                        udpClient.Dispose();
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex.Message);
+                    _logger.LogError($"Error advertising - {ex.Message}");
                 }
             });
         }
 
         public async Task<ICollection<KnownPeer>> DiscoverPeers()
         {
-            _logger.LogDebug("Discovering peers");
-            var result = new HashSet<KnownPeer>();            
-            var udpClient = new UdpClient(_port);
+            _logger.LogInformation("Discovering peers");
 
-            var ownAddress = _ownAddressResolver.ResolvePreferredLocalAddress();
-            udpClient.JoinMulticastGroup(IPAddress.Parse(_multicastAddress), ownAddress);
+            var result = new HashSet<KnownPeer>();
 
-            udpClient.Client.ReceiveTimeout = Convert.ToInt32(_interval.TotalMilliseconds + 1000);
-
-            DateTime pollUntil = DateTime.Now.Add(_interval);
-
-            while (pollUntil > DateTime.Now)
+            try
             {
-                byte[] b = new byte[1024];
-                try
+                var udpClient = new UdpClient(_port);
+
+                var ownAddress = _ownAddressResolver.ResolvePreferredLocalAddress();
+                udpClient.JoinMulticastGroup(IPAddress.Parse(_multicastAddress), ownAddress);
+
+                udpClient.Client.ReceiveTimeout = Convert.ToInt32(_interval.TotalMilliseconds + 1000);
+
+                DateTime pollUntil = DateTime.Now.Add(_interval);
+
+                while (pollUntil > DateTime.Now)
                 {
-                    //var ipEndPoint = new IPEndPoint(IPAddress.Any, 0);
-                    var data = await udpClient.ReceiveAsync(); //(ref ipEndPoint);                    
-                    string message = Encoding.ASCII.GetString(data.Buffer);
-                    _logger.LogDebug($"rx message {message}");
-                    if (message.StartsWith(_serviceId))
+                    byte[] b = new byte[1024];
+                    try
                     {
-                        var connStr = message.Remove(0, _serviceId.Length);
-                        result.Add(new KnownPeer()
+                        //var ipEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                        var data = await udpClient.ReceiveAsync(); //(ref ipEndPoint);                    
+                        string message = Encoding.ASCII.GetString(data.Buffer);
+                        _logger.LogDebug($"rx message {message}");
+                        if (message.StartsWith(_serviceId))
                         {
-                            ConnectionString = connStr,
-                            LastContact = DateTime.Now
-                        });
+                            var connStr = message.Remove(0, _serviceId.Length);
+                            result.Add(new KnownPeer()
+                            {
+                                ConnectionString = connStr,
+                                LastContact = DateTime.Now
+                            });
+                        }
+                    }
+                    catch (SocketException ex)
+                    {
+                        _logger.LogError($"SocketException polling for peers - {ex.Message}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Exception polling for peers - {ex.Message}");
                     }
                 }
-                catch (SocketException ex)
-                {
-                    _logger.LogDebug(ex.Message);                    
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex.Message);
-                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error joining multicast - {ex.Message}");
             }
 
             return result;

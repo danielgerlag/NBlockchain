@@ -6,7 +6,7 @@ using System.Text;
 namespace NBlockchain.Tests.Scenarios.Common
 {
     [TransactionType("txn-v1")]
-    public class TestTransaction
+    public class TestTransaction : BlockTransaction
     {
         public string Data { get; set; }
     }

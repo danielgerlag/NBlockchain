@@ -79,32 +79,37 @@ namespace NBlockchain.Services.Net
 
             Task.Factory.StartNew(async () =>
             {
-                while (!_cancelTokenSource.IsCancellationRequested)
+                try
                 {
-                    var client = await _listener.AcceptTcpClientAsync();
-                    _logger.LogDebug($"Client connected - {client.Client.RemoteEndPoint}");
-                    var peer = new PeerConnection(_serviceId, NodeId, client);
-                    peer.OnReceiveMessage += Peer_OnReceiveMessage;
-                    peer.OnDisconnect += Peer_OnDisconnect;
-                    _peerEvent.WaitOne();
-                    try
+                    while (!_cancelTokenSource.IsCancellationRequested)
                     {
-                        _peerConnections.Add(peer);
-                    }
-                    finally
-                    {
-                        _peerEvent.Set();
+                        var client = await _listener.AcceptTcpClientAsync();
+                        _logger.LogDebug($"Client connected - {client.Client.RemoteEndPoint}");
+                        var peer = new PeerConnection(_serviceId, NodeId, client);
+                        AttachEventHandlers(peer);
+                        _peerEvent.WaitOne();
+                        try
+                        {
+                            _peerConnections.Add(peer);
+                        }
+                        finally
+                        {
+                            _peerEvent.Set();
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error listening - {ex.Message}");
+                }
             });
-
-
+            
             DiscoverOwnConnectionStrings();
+            AdvertiseToPeers();
 
             _discoveryTimer = new Timer((state) =>
             {
-                DiscoverPeers();
-                AdvertiseToPeers();
+                DiscoverPeers();                
             }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30));
 
             _sharePeersTimer = new Timer(SharePeers, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
@@ -127,6 +132,30 @@ namespace NBlockchain.Services.Net
 
                 }
             });
+        }
+
+        private void AttachEventHandlers(PeerConnection peer)
+        {
+            peer.OnReceiveMessage += Peer_OnReceiveMessage;
+            peer.OnDisconnect += Peer_OnDisconnect;
+            peer.OnPeerException += Peer_OnPeerException;
+            peer.OnUnresponsive += Peer_OnUnresponsive;
+            peer.OnIdentify += Peer_OnIdentify;
+        }
+
+        private void Peer_OnIdentify(PeerConnection sender)
+        {
+            _logger.LogInformation($"Peer identify {sender.RemoteEndPoint} - {sender.RemoteId}");
+        }
+
+        private void Peer_OnUnresponsive(PeerConnection sender)
+        {
+            _logger.LogInformation($"Unresponsive peer {sender.RemoteEndPoint}");
+        }
+
+        private void Peer_OnPeerException(PeerConnection sender, Exception exception)
+        {
+            _logger.LogError($"Peer exception {sender.RemoteEndPoint} - {exception.Message}");
         }
 
         private async void Peer_OnReceiveMessage(PeerConnection sender, byte command, byte[] data)
@@ -176,8 +205,11 @@ namespace NBlockchain.Services.Net
 
         private async Task ProcessBlock(byte[] data, Guid originId, bool tail)
         {
-            _logger.LogDebug($"Processing block {tail}");
+            _logger.LogInformation($"Processing block - tail: {tail}");
             var block = DeserializeObject<Block>(data);
+
+            _logger.LogInformation($"Rec block {BitConverter.ToString(block.Header.BlockId)} from {originId}");
+
             var result = PeerDataResult.Ignore;
             if (tail)
                 result = await _blockReciever.RecieveTail(block);
@@ -224,6 +256,10 @@ namespace NBlockchain.Services.Net
                 _logger.LogInformation($"Peer disconnect {sender.RemoteId} {sender.RemoteEndPoint}");
                 _peerConnections.Remove(sender);
             }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Disconnect error ({sender.RemoteId}) - {ex.Message}");
+            }
             finally
             {
                 _peerEvent.Set();
@@ -236,8 +272,7 @@ namespace NBlockchain.Services.Net
             {
                 var peer = new PeerConnection(_serviceId, NodeId);                
                 peer.Connect(connStr);
-                peer.OnReceiveMessage += Peer_OnReceiveMessage;
-                peer.OnDisconnect += Peer_OnDisconnect;
+                AttachEventHandlers(peer);
                 _peerEvent.WaitOne();
                 try
                 {
@@ -400,7 +435,7 @@ namespace NBlockchain.Services.Net
                 var peers = GetActivePeers().Where(x => x.RemoteId != NodeId);
                 foreach (var peer in peers)
                 {
-                    _logger.LogDebug($"Requesting block from incoming peer {peer.RemoteId}");
+                    _logger.LogInformation($"Requesting block {BitConverter.ToString(blockId)} from incoming peer {peer.RemoteId}");
                     peer.Send(Commands.BlockRequest, blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));
