@@ -47,8 +47,8 @@ namespace DigitalCurrency
             var serviceProvider = services.BuildServiceProvider();
 
             //config logging
-            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();   
-            //loggerFactory.AddProvider()
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+            loggerFactory.AddFile("node.log", LogLevel.Debug);
 
             return serviceProvider;
         }

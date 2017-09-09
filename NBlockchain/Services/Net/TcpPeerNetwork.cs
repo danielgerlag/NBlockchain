@@ -13,6 +13,7 @@ using NBlockchain.Interfaces;
 using NBlockchain.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Bson;
+using System.Diagnostics;
 
 namespace NBlockchain.Services.Net
 {
@@ -76,11 +77,11 @@ namespace NBlockchain.Services.Net
             _listener = new TcpListener(IPAddress.Any, (int)_port);
             _listener.Start();
 
-            Task.Factory.StartNew(() =>
+            Task.Factory.StartNew(async () =>
             {
                 while (!_cancelTokenSource.IsCancellationRequested)
                 {
-                    var client = _listener.AcceptTcpClientAsync().Result;
+                    var client = await _listener.AcceptTcpClientAsync();
                     _logger.LogDebug($"Client connected - {client.Client.RemoteEndPoint}");
                     var peer = new PeerConnection(_serviceId, NodeId, client);
                     peer.OnReceiveMessage += Peer_OnReceiveMessage;
@@ -100,13 +101,32 @@ namespace NBlockchain.Services.Net
 
             DiscoverOwnConnectionStrings();
 
-            _discoveryTimer = new Timer((state) => 
+            _discoveryTimer = new Timer((state) =>
             {
                 DiscoverPeers();
                 AdvertiseToPeers();
             }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30));
 
             _sharePeersTimer = new Timer(SharePeers, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+
+
+            Task.Factory.StartNew(async () =>
+            {
+                while (!_cancelTokenSource.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(5));
+                    var peers = GetActivePeers();
+                    _logger.LogInformation($"Check in - Outgoing peers: {peers.Count(x => x.Outgoing)}");
+                    _logger.LogInformation($"Check in - Incoming peers: {peers.Count(x => !x.Outgoing)}");
+
+                    var process = Process.GetCurrentProcess();
+
+                    _logger.LogInformation($"Check in - Thread count: {process.Threads.Count}");
+                    _logger.LogInformation($"Check in - Working set: {process.WorkingSet64}");
+                    _logger.LogInformation($"Check in - PrivateMemorySize: {process.PrivateMemorySize64}");
+
+                }
+            });
         }
 
         private async void Peer_OnReceiveMessage(PeerConnection sender, byte command, byte[] data)
@@ -201,6 +221,7 @@ namespace NBlockchain.Services.Net
             _peerEvent.WaitOne();
             try
             {
+                _logger.LogInformation($"Peer disconnect {sender.RemoteId} {sender.RemoteEndPoint}");
                 _peerConnections.Remove(sender);
             }
             finally
@@ -301,7 +322,7 @@ namespace NBlockchain.Services.Net
                         if (peersOut.Any(x => x.ConnectionString == kp.ConnectionString))
                             continue;
 
-                        _logger.LogDebug($"Connecting to {kp.ConnectionString}");
+                        _logger.LogInformation($"Connecting to {kp.ConnectionString}");
                         OnboardPeer(kp.ConnectionString);
                         actual++;
                     }
