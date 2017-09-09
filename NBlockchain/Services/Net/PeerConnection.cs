@@ -163,13 +163,22 @@ namespace NBlockchain.Services.Net
                     var lengthSegment = new ArraySegment<byte>(header, _serviceIdentifier.Length, 4).ToArray();
                     var commandSegment = new ArraySegment<byte>(header, _serviceIdentifier.Length + 4, 2).ToArray();
 
+                    if (!servIdSegment.SequenceEqual(_serviceIdentifier))
+                    {                         
+                        var flushBuffer = new byte[_client.Available];
+
+                        _client.Client.Receive(flushBuffer, _client.Available, SocketFlags.None);
+                        continue;
+                    }
+
                     var msgLength = BitConverter.ToInt32(lengthSegment, 0);
                     var msgBuffer = new byte[msgLength];
 
-                    if (!servIdSegment.SequenceEqual(_serviceIdentifier))
-                        continue;
-
-                    if (_client.Client.Receive(msgBuffer) != msgLength)
+                    var actualRecv = 0;
+                    while (actualRecv < msgLength)
+                        actualRecv += _client.Client.Receive(msgBuffer, actualRecv, msgLength - actualRecv, SocketFlags.None);
+                    
+                    if (actualRecv != msgLength)
                         continue;
 
                     _lastContact = DateTime.Now;
