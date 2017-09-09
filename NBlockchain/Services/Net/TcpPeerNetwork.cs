@@ -73,14 +73,14 @@ namespace NBlockchain.Services.Net
         public void Open()
         {
             _cancelTokenSource = new CancellationTokenSource();
-            _listener = new TcpListener((int)_port);
+            _listener = new TcpListener(IPAddress.Any, (int)_port);
             _listener.Start();
 
             Task.Factory.StartNew(() =>
             {
                 while (!_cancelTokenSource.IsCancellationRequested)
                 {
-                    var client = _listener.AcceptTcpClient();
+                    var client = _listener.AcceptTcpClientAsync().Result;
                     _logger.LogDebug($"Client connected - {client.Client.RemoteEndPoint}");
                     var peer = new PeerConnection(_serviceId, NodeId, client);
                     peer.OnReceiveMessage += Peer_OnReceiveMessage;

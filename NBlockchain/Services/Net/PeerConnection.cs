@@ -60,7 +60,7 @@ namespace NBlockchain.Services.Net
             if (uri.Scheme != "tcp")
                 throw new InvalidOperationException("Only tcp connections are possible");
 
-            _client.Connect(uri.Host, uri.Port);
+            _client.ConnectAsync(uri.Host, uri.Port).Wait();
             Task.Factory.StartNew(Poll);
             Send(NetworkQualifier, IdentifyCommand, _localId.ToByteArray());
         }
@@ -104,7 +104,8 @@ namespace NBlockchain.Services.Net
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"SEND ERR: {ex.Message}");
+
+                //($"SEND ERR: {ex.Message}");
             }
             finally
             {
@@ -114,8 +115,11 @@ namespace NBlockchain.Services.Net
 
         public void Disconnect()
         {
-            _client.Client.Disconnect(false);
-            _client.Close();
+            //_client.Client.(false);
+            //_client.Close();
+            _client.Client.Shutdown(SocketShutdown.Both);
+            _client.Dispose();
+
         }
 
         private void Maintain(object state)
@@ -184,7 +188,7 @@ namespace NBlockchain.Services.Net
                 catch (Exception ex)
                 {
                     //log
-                    Console.WriteLine($"EXCEPTION: {ex.Message}");
+                    //Console.WriteLine($"EXCEPTION: {ex.Message}");
                     await Task.Delay(1000);
                 }
             }
