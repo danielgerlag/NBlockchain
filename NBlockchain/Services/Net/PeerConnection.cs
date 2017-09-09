@@ -156,7 +156,7 @@ namespace NBlockchain.Services.Net
                 {
                     var header = new byte[headerLength];
 
-                    if (_client.Client.Receive(header) != headerLength)
+                    if (Recieve(header) != headerLength)
                         continue;
 
                     var servIdSegment = new ArraySegment<byte>(header, 0, _serviceIdentifier.Length).ToArray();
@@ -166,7 +166,6 @@ namespace NBlockchain.Services.Net
                     if (!servIdSegment.SequenceEqual(_serviceIdentifier))
                     {                         
                         var flushBuffer = new byte[_client.Available];
-
                         _client.Client.Receive(flushBuffer, _client.Available, SocketFlags.None);
                         continue;
                     }
@@ -174,9 +173,7 @@ namespace NBlockchain.Services.Net
                     var msgLength = BitConverter.ToInt32(lengthSegment, 0);
                     var msgBuffer = new byte[msgLength];
 
-                    var actualRecv = 0;
-                    while (actualRecv < msgLength)
-                        actualRecv += _client.Client.Receive(msgBuffer, actualRecv, msgLength - actualRecv, SocketFlags.None);
+                    var actualRecv = Recieve(msgBuffer);
                     
                     if (actualRecv != msgLength)
                         continue;
@@ -230,6 +227,15 @@ namespace NBlockchain.Services.Net
                 case PingCommand:
                     break;
             }
+        }
+
+        private int Recieve(byte[] msgBuffer)
+        {
+            var actualRecv = 0;
+            while (actualRecv < msgBuffer.Length)
+                actualRecv += _client.Client.Receive(msgBuffer, actualRecv, (msgBuffer.Length - actualRecv), SocketFlags.None);
+
+            return actualRecv;
         }
     }
 

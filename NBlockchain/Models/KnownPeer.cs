@@ -8,6 +8,7 @@ namespace NBlockchain.Models
     {
         public string ConnectionString { get; set; }
         public DateTime LastContact { get; set; }
+        public bool IsSelf { get; set; }
 
     }
 }

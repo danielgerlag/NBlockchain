@@ -146,6 +146,16 @@ namespace NBlockchain.Services.Net
         private void Peer_OnIdentify(PeerConnection sender)
         {
             _logger.LogInformation($"Peer identify {sender.RemoteEndPoint} - {sender.RemoteId}");
+            if (sender.RemoteId == NodeId)
+            {
+                if (!string.IsNullOrEmpty(sender.ConnectionString))
+                {
+                    var selfs = _peerRoundRobin.Where(x => x.ConnectionString == sender.ConnectionString);
+                    foreach (var self in selfs)
+                        self.IsSelf = true;
+                }
+                sender.Disconnect();
+            }
         }
 
         private void Peer_OnUnresponsive(PeerConnection sender)
@@ -353,6 +363,9 @@ namespace NBlockchain.Services.Net
                     {
                         _peerRoundRobin.Enqueue(kp);
                         counter++;
+
+                        if (kp.IsSelf)
+                            continue;
 
                         if (peersOut.Any(x => x.ConnectionString == kp.ConnectionString))
                             continue;
