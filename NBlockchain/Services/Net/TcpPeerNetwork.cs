@@ -208,6 +208,8 @@ namespace NBlockchain.Services.Net
             {
                 var peer = new PeerConnection(_serviceId, NodeId);                
                 peer.Connect(connStr);
+                peer.OnReceiveMessage += Peer_OnReceiveMessage;
+                peer.OnDisconnect += Peer_OnDisconnect;
                 _peerEvent.WaitOne();
                 try
                 {
