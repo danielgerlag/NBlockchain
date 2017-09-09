@@ -117,16 +117,23 @@ namespace NBlockchain.Services.Net
         {
             //_client.Client.(false);
             //_client.Close();
+            
             _client.Client.Shutdown(SocketShutdown.Both);
-            _client.Dispose();
-
+            //_client.Dispose();
         }
 
         private void Maintain(object state)
         {
             if (_client.Connected)
             {
-                Send(NetworkQualifier, PingCommand, new byte[0]);
+                if (_lastContact < (DateTime.Now.AddMinutes(-10)))
+                {
+                    Disconnect();
+                }
+                else
+                {
+                    Send(NetworkQualifier, PingCommand, new byte[0]);
+                }
             }
         }
 

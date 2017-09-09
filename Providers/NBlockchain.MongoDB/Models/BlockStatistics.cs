@@ -7,5 +7,7 @@ namespace NBlockchain.MongoDB.Models
     public class BlockStatistics
     {
         public int BlockTime { get; set; }
+
+        public DateTime TimeStamp { get; set; }
     }
 }

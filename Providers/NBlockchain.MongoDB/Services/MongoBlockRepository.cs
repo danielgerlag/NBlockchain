@@ -49,6 +49,8 @@ namespace NBlockchain.MongoDB.Services
                 .Project(x => x.Header)
                 .FirstOrDefault();
 
+            persisted.Statistics.TimeStamp = new DateTime(block.Header.Timestamp);
+
             if (prevHeader != null)
                 persisted.Statistics.BlockTime = Convert.ToInt32(TimeSpan.FromTicks(block.Header.Timestamp - prevHeader.Timestamp).TotalSeconds);
 

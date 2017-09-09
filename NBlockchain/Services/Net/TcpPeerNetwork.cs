@@ -111,24 +111,31 @@ namespace NBlockchain.Services.Net
 
         private async void Peer_OnReceiveMessage(PeerConnection sender, byte command, byte[] data)
         {
-            switch (command)
+            try
             {
-                case Commands.Block:
-                    await ProcessBlock(data, sender.RemoteId, false);
-                    break;
-                case Commands.BlockRequest:
-                    await ProcessBlockRequest(data, sender);
-                    break;
-                case Commands.PeerShare:
-                    if (IsSharablePeer(Encoding.UTF8.GetString(data)))
-                        AddPeer(new KnownPeer() { ConnectionString = Encoding.UTF8.GetString(data) });
-                    break;
-                case Commands.Tail:
-                    await ProcessBlock(data, sender.RemoteId, true);
-                    break;
-                case Commands.Txn:
-                    await ProcessTransaction(data, sender.RemoteId);
-                    break;
+                switch (command)
+                {
+                    case Commands.Block:
+                        await ProcessBlock(data, sender.RemoteId, false);
+                        break;
+                    case Commands.BlockRequest:
+                        await ProcessBlockRequest(data, sender);
+                        break;
+                    case Commands.PeerShare:
+                        if (IsSharablePeer(Encoding.UTF8.GetString(data)))
+                            AddPeer(new KnownPeer() { ConnectionString = Encoding.UTF8.GetString(data) });
+                        break;
+                    case Commands.Tail:
+                        await ProcessBlock(data, sender.RemoteId, true);
+                        break;
+                    case Commands.Txn:
+                        await ProcessTransaction(data, sender.RemoteId);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error procssing command {command} - {ex.Message}");
             }
         }
 
@@ -480,7 +487,7 @@ namespace NBlockchain.Services.Net
         {
             return GetActivePeers()
                 .Where(x => !x.Outgoing)
-                .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint.ToString()) { LastContact = x.LastContact.Value })
+                .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint.ToString()))
                 .ToList();
         }
 
@@ -488,7 +495,7 @@ namespace NBlockchain.Services.Net
         {
             return GetActivePeers()
                 .Where(x => x.Outgoing)
-                .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint.ToString()) { LastContact = x.LastContact.Value })
+                .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint.ToString()))
                 .ToList();
         }
         
