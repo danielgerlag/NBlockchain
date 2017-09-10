@@ -24,17 +24,14 @@ namespace DigitalCurrency
         private static ICustomTransactionRepository _txnRepo;
         private static IBlockRepository _blockRepo;
 
-        private static IServiceProvider ConfigureNode(string db, uint port)
+        private static IServiceProvider ConfigureForLiteDb(string db, uint port)
         {
             IServiceCollection services = new ServiceCollection();
             services.AddBlockchain(x =>
             {                
                 x.UseDataConnection("node.db");
                 x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
-                x.UseTcpPeerNetwork(port);
-                //x.UseMongoDB(@"mongodb://localhost:27017", db)
-                //    .UseTransactionRepository<ICustomTransactionRepository, CustomMongoTransactionRepository>();
-                //x.AddPeerDiscovery(sp => new StaticPeerDiscovery("tcp://localhost:503"));
+                x.UseTcpPeerNetwork(port);                
                 x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
                 x.AddTransactionType<TransferTransaction>();
                 x.AddTransactionType<CoinbaseTransaction>();
@@ -60,9 +57,43 @@ namespace DigitalCurrency
             return serviceProvider;
         }
 
+        private static IServiceProvider ConfigureForMongoDB(string db, uint port)
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddBlockchain(x =>
+            {                
+                x.UseTcpPeerNetwork(port);
+                x.UseMongoDB(@"mongodb://localhost:27017", db)
+                    .UseTransactionRepository<ICustomTransactionRepository, CustomMongoTransactionRepository>();
+                //x.AddPeerDiscovery(sp => new StaticPeerDiscovery("tcp://localhost:503"));
+                x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
+                x.AddTransactionType<TransferTransaction>();
+                x.AddTransactionType<CoinbaseTransaction>();
+                x.AddTransactionRule<BalanceRule>();
+                x.AddTransactionRule<CoinbaseRule>();
+                x.UseBlockbaseProvider<CoinbaseBuilder>();
+                x.UseParameters(new StaticNetworkParameters()
+                {
+                    BlockTime = TimeSpan.FromSeconds(120),
+                    HeaderVersion = 1,
+                    ExpectedContentThreshold = 0.8m
+                });
+            });
+
+            services.AddLogging();
+            var serviceProvider = services.BuildServiceProvider();
+
+            //config logging
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+            loggerFactory.AddDebug();
+            loggerFactory.AddFile("node.log", LogLevel.Debug);
+
+            return serviceProvider;
+        }
+
         static void Main(string[] args)
         {
-            var serviceProvider = ConfigureNode("DigitalCurrency", 10500);
+            var serviceProvider = ConfigureForMongoDB("DigitalCurrency", 10500);
 
             _host = serviceProvider.GetService<INodeHost>();
             _miner = serviceProvider.GetService<IBlockMiner>();

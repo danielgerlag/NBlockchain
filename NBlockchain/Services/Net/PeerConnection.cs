@@ -11,12 +11,12 @@ namespace NBlockchain.Services.Net
 {
     public class PeerConnection
     {
+        private const int MaxMessageSize = 10240000;
         private const byte NetworkQualifier = 0;
         private const byte MessageQualifier = 1;
 
         private const byte IdentifyCommand = 0;
         private const byte PingCommand = 1;
-
 
         private readonly byte[] _serviceIdentifier;
         private readonly TcpClient _client;
@@ -25,6 +25,7 @@ namespace NBlockchain.Services.Net
         private Guid _remoteId = Guid.NewGuid();
         private DateTime? _lastContact;
         private CancellationTokenSource _cancelToken = new CancellationTokenSource();
+        private bool _pollExited = false;
 
         public event ReceiveMessage OnReceiveMessage;
         public event PeerEvent OnDisconnect;
@@ -120,11 +121,28 @@ namespace NBlockchain.Services.Net
         public void Disconnect()
         {
             _cancelToken.Cancel();
-            //_client.Client.(false);
-            //_client.Close();
-            
-            _client.Client.Shutdown(SocketShutdown.Both);
-            //_client.Dispose();
+            _resetEvent.WaitOne();
+            try
+            {
+                _client.Client.Shutdown(SocketShutdown.Both);
+            }
+            catch (Exception ex)
+            {
+                OnPeerException?.Invoke(this, ex);
+            }
+            finally
+            {
+                _resetEvent.Set();
+            }
+        }
+
+        public void Close()
+        {
+            Task.Factory.StartNew(() =>
+            {
+                SpinWait.SpinUntil(() => _pollExited);
+                _client.Dispose();
+            });
         }
 
         private void Maintain(object state)
@@ -145,7 +163,7 @@ namespace NBlockchain.Services.Net
 
         private async void Poll()
         {
-            //_client.ReceiveTimeout = 3000;
+            _pollExited = false;
             _cancelToken = new CancellationTokenSource();
             var headerLength = _serviceIdentifier.Length + 6;
             var timer = new Timer(Maintain, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(120));
@@ -171,6 +189,13 @@ namespace NBlockchain.Services.Net
                     }
 
                     var msgLength = BitConverter.ToInt32(lengthSegment, 0);
+
+                    if (msgLength < 0)
+                        continue;
+
+                    if (msgLength > MaxMessageSize)
+                        continue;
+
                     var msgBuffer = new byte[msgLength];
 
                     var actualRecv = Recieve(msgBuffer);
@@ -214,6 +239,7 @@ namespace NBlockchain.Services.Net
                 }
             }
             timer.Dispose();
+            _pollExited = true;
         }
 
         private void ProcessNetworkCommand(byte command, byte[] data)

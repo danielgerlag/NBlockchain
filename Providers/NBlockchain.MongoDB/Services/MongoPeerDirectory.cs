@@ -76,6 +76,8 @@ namespace NBlockchain.MongoDB.Services
         {
             this.ConnectionString = node.ConnectionString;
             this.LastContact = node.LastContact;
+            this.IsSelf = node.IsSelf;
+            this.NodeId = node.NodeId;
         }
 
         public MongoPeerNode(ObjectId id, KnownPeer node)
@@ -83,6 +85,8 @@ namespace NBlockchain.MongoDB.Services
             this.Id = id;
             this.ConnectionString = node.ConnectionString;
             this.LastContact = node.LastContact;
+            this.IsSelf = node.IsSelf;
+            this.NodeId = node.NodeId;
         }
     }
 }

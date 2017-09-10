@@ -31,6 +31,7 @@ namespace NBlockchain.Services.Net
         private readonly IEnumerable<IPeerDiscoveryService> _discoveryServices;
         private readonly ILogger _logger;
         private readonly IOwnAddressResolver _ownAddressResolver;
+        private readonly IPendingTransactionList _pendingTransactionList;
 
         private readonly ConcurrentQueue<KnownPeer> _peerRoundRobin = new ConcurrentQueue<KnownPeer>();
         
@@ -46,15 +47,18 @@ namespace NBlockchain.Services.Net
         private string _internalConnsctionString;
         private string _externalConnsctionString;
 
+        private object _duplicateLock = new object();
+
         public Guid NodeId { get; private set; }
 
-        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver)
+        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IPendingTransactionList pendingTransactionList)
         {
             _port = port;
             _logger = loggerFactory.CreateLogger<TcpPeerNetwork>();
             _blockRepository = blockRepository;
             _discoveryServices = discoveryServices;
             _ownAddressResolver = ownAddressResolver;
+            _pendingTransactionList = pendingTransactionList;
             NodeId = Guid.NewGuid();            
         }
 
@@ -146,6 +150,23 @@ namespace NBlockchain.Services.Net
         private void Peer_OnIdentify(PeerConnection sender)
         {
             _logger.LogInformation($"Peer identify {sender.RemoteEndPoint} - {sender.RemoteId}");
+
+            if (!string.IsNullOrEmpty(sender.ConnectionString))
+            {
+                var peers = _peerRoundRobin.Where(x => x.ConnectionString == sender.ConnectionString);
+                foreach (var peer in peers)
+                    peer.NodeId = sender.RemoteId;
+            }
+
+            //remove duplicate connections
+            lock (_duplicateLock)
+            {
+                var peers = GetActivePeers();
+                foreach (var peer in peers.Where(x => x.RemoteId == sender.RemoteId && x != sender))
+                    peer.Disconnect();
+            }
+
+            //remove connection to self
             if (sender.RemoteId == NodeId)
             {
                 if (!string.IsNullOrEmpty(sender.ConnectionString))
@@ -189,6 +210,9 @@ namespace NBlockchain.Services.Net
                         break;
                     case Commands.Txn:
                         await ProcessTransaction(data, sender.RemoteId);
+                        break;
+                    case Commands.TxnRequest:
+                        ProcessTxnRequest(sender);
                         break;
                 }
             }
@@ -255,7 +279,17 @@ namespace NBlockchain.Services.Net
                 });
             }
         }
-                
+
+        private void ProcessTxnRequest(PeerConnection peer)
+        {
+            var txns = _pendingTransactionList.Get;
+
+            foreach (var txn in txns)
+            {
+                var data = SerializeObject(txn);
+                SendTxn(peer, data);
+            }
+        }
 
         private void Peer_OnDisconnect(PeerConnection sender)
         {
@@ -264,6 +298,7 @@ namespace NBlockchain.Services.Net
             {
                 _logger.LogInformation($"Peer disconnect {sender.RemoteId} {sender.RemoteEndPoint}");
                 _peerConnections.Remove(sender);
+                sender.Close();
             }
             catch (Exception ex)
             {
@@ -345,7 +380,8 @@ namespace NBlockchain.Services.Net
                 
         private void ConnectOut()
         {
-            var peersOut = GetActivePeers().Where(x => x.Outgoing);
+            var activePeers = GetActivePeers();
+            var peersOut = activePeers.Where(x => x.Outgoing);
             var target = (TargetOutgoingCount - peersOut.Count());
             if (target <= 0)
                 return;
@@ -365,6 +401,9 @@ namespace NBlockchain.Services.Net
                             continue;
 
                         if (peersOut.Any(x => x.ConnectionString == kp.ConnectionString))
+                            continue;
+
+                        if (activePeers.Any(x => x.RemoteId == kp.NodeId))
                             continue;
 
                         _logger.LogInformation($"Connecting to {kp.ConnectionString}");
@@ -574,5 +613,6 @@ namespace NBlockchain.Services.Net
         public const byte Txn = 2;
         public const byte BlockRequest = 3;
         public const byte PeerShare = 4;
+        public const byte TxnRequest = 5;
     }   
 }
