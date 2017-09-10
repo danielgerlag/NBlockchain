@@ -33,7 +33,7 @@ In this case we want two types of transactions
 ## Implement a repository to query our transactions
 
 Now we need to implement a repository to run queries against our defined transactions.
-This can be done by extending `TransactionRepository` which gives us access the the block store (if MongoDB is used as the persistence store, then you would extend `MongoTransactionRepository`, see (sample)[Repositories/Mongo/CustomMongoTransactionRepository.cs])
+This can be done by extending `TransactionRepository` which gives us access the the block store (if MongoDB is used as the persistence store, then you would extend `MongoTransactionRepository`, see [sample](Repositories/Mongo/CustomMongoTransactionRepository.cs))
 
 ```c#
 public class CustomTransactionRepository : TransactionRepository, ICustomTransactionRepository
