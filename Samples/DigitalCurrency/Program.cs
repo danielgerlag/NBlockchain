@@ -1,4 +1,6 @@
 ﻿using DigitalCurrency.Repositories;
+using DigitalCurrency.Repositories.LiteDb;
+using DigitalCurrency.Repositories.Mongo;
 using DigitalCurrency.Rules;
 using DigitalCurrency.Transactions;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +10,7 @@ using NBlockchain.Models;
 using NBlockchain.Services.PeerDiscovery;
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace DigitalCurrency
 {
@@ -18,16 +21,19 @@ namespace DigitalCurrency
         private static IPeerNetwork _network;
         private static ISignatureService _sigService;
         private static IAddressEncoder _addressEncoder;
-        private static ITransactionRepository _txnRepo;
+        private static ICustomTransactionRepository _txnRepo;
+        private static IBlockRepository _blockRepo;
 
         private static IServiceProvider ConfigureNode(string db, uint port)
         {
             IServiceCollection services = new ServiceCollection();
             services.AddBlockchain(x =>
-            {
-                x.UseMongoDB(@"mongodb://localhost:27017", db)
-                    .UseTransactionRepository<ITransactionRepository, TransactionRepository>();
+            {                
+                x.UseDataConnection("node.db");
+                x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
                 x.UseTcpPeerNetwork(port);
+                //x.UseMongoDB(@"mongodb://localhost:27017", db)
+                //    .UseTransactionRepository<ICustomTransactionRepository, CustomMongoTransactionRepository>();
                 //x.AddPeerDiscovery(sp => new StaticPeerDiscovery("tcp://localhost:503"));
                 x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
                 x.AddTransactionType<TransferTransaction>();
@@ -37,7 +43,7 @@ namespace DigitalCurrency
                 x.UseBlockbaseProvider<CoinbaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
                 {
-                    BlockTime = TimeSpan.FromSeconds(10),                    
+                    BlockTime = TimeSpan.FromSeconds(120),                    
                     HeaderVersion = 1,
                     ExpectedContentThreshold = 0.8m
                 });
@@ -63,7 +69,8 @@ namespace DigitalCurrency
             _network = serviceProvider.GetService<IPeerNetwork>();
             _sigService = serviceProvider.GetService<ISignatureService>();
             _addressEncoder = serviceProvider.GetService<IAddressEncoder>();
-            _txnRepo = serviceProvider.GetService<ITransactionRepository>();
+            _txnRepo = serviceProvider.GetService<ICustomTransactionRepository>();
+            _blockRepo = serviceProvider.GetService<IBlockRepository>();
 
             Console.WriteLine("Generating key pair...");
             var keys = _sigService.GenerateKeyPair();            
@@ -106,6 +113,10 @@ namespace DigitalCurrency
                     Console.WriteLine("Mining...");
                     _miner.Start(keys, false);
                     break;
+                case "stop-mining":
+                    Console.WriteLine("Stopping...");
+                    _miner.Stop();
+                    break;
                 case "peers":                    
                     var peersIn = _network.GetPeersIn();
                     var peersOut = _network.GetPeersOut();
@@ -119,6 +130,14 @@ namespace DigitalCurrency
                         Console.WriteLine($"Balance = {_txnRepo.GetAccountBalance(ownAddress)}");
                     else
                         Console.WriteLine($"Balance = {_txnRepo.GetAccountBalance(args[1])}");
+                    break;
+                case "best-block":
+                    var header = _blockRepo.GetNewestBlockHeader().Result;
+                    Console.WriteLine($"Height: {header.Height}, Id: {BitConverter.ToString(header.BlockId)}");                    
+                    break;
+                case "avg-time":
+                    var avgTime = _blockRepo.GetAverageBlockTimeInSecs(DateTime.UtcNow.AddHours(-1), DateTime.UtcNow).Result;
+                    Console.WriteLine($"Avg time: {avgTime}s");
                     break;
                 case "send":
                     if (args.Length != 3)

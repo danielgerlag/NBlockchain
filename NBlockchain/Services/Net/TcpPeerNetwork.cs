@@ -214,11 +214,10 @@ namespace NBlockchain.Services.Net
         }
 
         private async Task ProcessBlock(byte[] data, Guid originId, bool tail)
-        {
-            _logger.LogInformation($"Processing block - tail: {tail}");
+        {            
             var block = DeserializeObject<Block>(data);
 
-            _logger.LogInformation($"Rec block {BitConverter.ToString(block.Header.BlockId)} from {originId}");
+            _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)} from {originId}");
 
             var result = PeerDataResult.Ignore;
             if (tail)
@@ -342,8 +341,6 @@ namespace NBlockchain.Services.Net
         {
             foreach (var ds in _discoveryServices)
                 await ds.SharePeers(_peerRoundRobin.ToList());
-
-            //
         }
                 
         private void ConnectOut()
@@ -448,7 +445,7 @@ namespace NBlockchain.Services.Net
                 var peers = GetActivePeers().Where(x => x.RemoteId != NodeId);
                 foreach (var peer in peers)
                 {
-                    _logger.LogInformation($"Requesting block {BitConverter.ToString(blockId)} from incoming peer {peer.RemoteId}");
+                    _logger.LogDebug($"Requesting block {BitConverter.ToString(blockId)} from incoming peer {peer.RemoteId}");
                     peer.Send(Commands.BlockRequest, blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));

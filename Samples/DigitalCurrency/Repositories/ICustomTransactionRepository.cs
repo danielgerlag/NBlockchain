@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DigitalCurrency.Repositories
 {
-    public interface ITransactionRepository
+    public interface ICustomTransactionRepository
     {
         decimal GetAccountBalance(string account);
     }

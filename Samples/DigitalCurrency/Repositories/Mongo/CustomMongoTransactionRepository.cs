@@ -5,11 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace DigitalCurrency.Repositories
+namespace DigitalCurrency.Repositories.Mongo
 {
-    public class TransactionRepository : MongoTransactionRepository, ITransactionRepository
+    public class CustomMongoTransactionRepository : MongoTransactionRepository, ICustomTransactionRepository
     {
-        public TransactionRepository(IMongoDatabase database)
+        public CustomMongoTransactionRepository(IMongoDatabase database)
             : base(database)
         {
         }

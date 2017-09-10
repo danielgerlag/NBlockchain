@@ -10,9 +10,9 @@ namespace DigitalCurrency.Rules
 {
     public class BalanceRule : TransactionRule<TransferTransaction>
     {
-        private readonly ITransactionRepository _txnRepo;
+        private readonly ICustomTransactionRepository _txnRepo;
 
-        public BalanceRule(ITransactionRepository txnRepo)
+        public BalanceRule(ICustomTransactionRepository txnRepo)
         {
             _txnRepo = txnRepo;
         }
