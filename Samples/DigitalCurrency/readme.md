@@ -33,48 +33,34 @@ In this case we want two types of transactions
 ## Implement a repository to query our transactions
 
 Now we need to implement a repository to run queries against our defined transactions.
-This can be done by extending `MongoTransactionRepository` which gives us access the the block store (if MongoDB is used as the persistence store)
+This can be done by extending `TransactionRepository` which gives us access the the block store (if MongoDB is used as the persistence store, then you would extend `MongoTransactionRepository`, see (sample)[Repositories/Mongo/CustomMongoTransactionRepository.cs])
 
 ```c#
-public class TransactionRepository : MongoTransactionRepository, ITransactionRepository
+public class CustomTransactionRepository : TransactionRepository, ICustomTransactionRepository
 {
-    public TransactionRepository(IMongoDatabase database)
-        : base(database)
+    public CustomTransactionRepository(ILoggerFactory loggerFactory, IDataConnection dataConnection)
+        : base(loggerFactory, dataConnection)
     {
-    }	    
+    }
 
     public decimal GetAccountBalance(string account)
     {
-        var totalOut = 0;
-        var totalIn = 0;
+        var totalOut = Transactions
+            .Find(Query.EQ("Entity.Originator", account))
+            .Select(x => x.Entity.Transaction)
+            .OfType<ValueTransaction>()
+            .Sum(x => x.Amount);
 
-        var outQry = Blocks.Aggregate()
-            .Unwind(x => x.Transactions)
-            .Match(new BsonDocument("Transactions.Originator", account))
-            .Group(new BsonDocument { { "_id", BsonNull.Value }, { "sum", new BsonDocument("$sum", "$Transactions.Transaction.Amount") } })
-            .SingleOrDefault();
 
-        if (outQry != null)
-        {
-            if (outQry.TryGetValue("sum", out var bOut))
-                totalOut = bOut.AsInt32;
-        }
-
-        var inQry = Blocks.Aggregate()
-            .Unwind(x => x.Transactions)
-            .Match(new BsonDocument("Transactions.Transaction.Destination", account))
-            .Group(new BsonDocument { { "_id", BsonNull.Value }, { "sum", new BsonDocument("$sum", "$Transactions.Transaction.Amount") } })
-            .SingleOrDefault();
-
-        if (inQry != null)
-        {
-            if (inQry.TryGetValue("sum", out var bIn))
-                totalIn = bIn.AsInt32;
-        }
+        var totalIn = Transactions
+            .Find(Query.EQ("Entity.Transaction.Destination", account))
+            .Select(x => x.Entity.Transaction)
+            .OfType<TransferTransaction>()
+            .Where(x => x.Destination == account)
+            .Sum(x => x.Amount);
 
         return (totalIn - totalOut);
     }
-
 }
 ```
 
@@ -133,12 +119,37 @@ public class CoinbaseBuilder : BlockbaseTransactionBuilder<CoinbaseTransaction>
 
 When we configure the IoC container for our blockchain node, we have several options
 In this case we chose
- * To use MongoDB as the database
+ * To use the built-in LiteDb as the database (using node.db as the datafile)
+ * Register our customer transaction repository that we use in our rule definitions
  * To use the Tcp peer network and listen on port 500
  * Use the multicast peer discovery protocol (to find other peers on the LAN)
  * Added our Transaction types that we defined earlier
  * Added our Transaction rules
  * Set the block time to 10 seconds
+
+```c#
+IServiceCollection services = new ServiceCollection();
+services.AddBlockchain(x =>
+{
+    x.UseDataConnection("node.db");
+    x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
+    x.UseTcpPeerNetwork(500);
+    x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
+    x.AddTransactionType<TransferTransaction>();
+    x.AddTransactionType<CoinbaseTransaction>();
+    x.AddTransactionRule<BalanceRule>();
+    x.AddTransactionRule<CoinbaseRule>();
+    x.UseBlockbaseProvider<CoinbaseBuilder>();
+    x.UseParameters(new StaticNetworkParameters()
+    {
+        BlockTime = TimeSpan.FromSeconds(10),
+        HeaderVersion = 1,
+        ExpectedContentThreshold = 0.8m
+    });
+});
+```
+
+If you wanted to use MongoDB as the persistence store, then the config would look something like this
 
 ```c#
 IServiceCollection services = new ServiceCollection();
