@@ -1,13 +1,14 @@
 # Digital currency sample for NBlockchain
 
-This example demonstrates how to implement a very basic digital currency with NBlockchain
+This example demonstrates how to implement a very basic digital currency with NBlockchain.
+(This does not follow the input/output aggregation model that Bitcoin uses but it just meant to illustrate an application of NBlockchin)
 
 ## Define our transactions types
 
 The first thing we will do is define the schema of the transactions we want to store in our blockchain.
 
 ```c#
-public abstract class ValueTransaction
+public abstract class ValueTransaction : BlockTransaction
 {
     public int Amount { get; set; }
 }
