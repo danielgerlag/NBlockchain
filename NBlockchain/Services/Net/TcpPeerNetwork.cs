@@ -163,7 +163,10 @@ namespace NBlockchain.Services.Net
             {
                 var peers = GetActivePeers();
                 foreach (var peer in peers.Where(x => x.RemoteId == sender.RemoteId && x != sender))
+                {
                     peer.Disconnect();
+                    peer.Close();
+                }
             }
 
             //remove connection to self
@@ -176,6 +179,7 @@ namespace NBlockchain.Services.Net
                         self.IsSelf = true;
                 }
                 sender.Disconnect();
+                sender.Close();
             }
         }
 
@@ -310,12 +314,12 @@ namespace NBlockchain.Services.Net
             }
         }
         
-        private void OnboardPeer(string connStr)
+        private async Task OnboardPeer(string connStr)
         {
             try
             {
                 var peer = new PeerConnection(_serviceId, NodeId);                
-                peer.Connect(connStr);
+                await peer.Connect(connStr);
                 AttachEventHandlers(peer);
                 _peerEvent.WaitOne();
                 try
@@ -330,6 +334,9 @@ namespace NBlockchain.Services.Net
             catch (Exception ex)
             {
                 _logger.LogError($"Error connecting to {connStr} - {ex.Message}");
+                var peers = _peerRoundRobin.Where(x => x.ConnectionString == connStr);
+                foreach (var peer in peers)
+                    peer.Unreachable = true;
             }
         }
 

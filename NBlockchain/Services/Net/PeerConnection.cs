@@ -57,15 +57,15 @@ namespace NBlockchain.Services.Net
             Task.Factory.StartNew(Poll);
         }
 
-        public void Connect(string connectionString)
+        public async Task Connect(string connectionString)
         {
             ConnectionString = connectionString;
             var uri = new Uri(connectionString);
             if (uri.Scheme != "tcp")
                 throw new InvalidOperationException("Only tcp connections are possible");
-
-            _client.ConnectAsync(uri.Host, uri.Port).Wait();
-            Task.Factory.StartNew(Poll);
+                        
+            await _client.ConnectAsync(uri.Host, uri.Port);
+            var pollTask = Task.Factory.StartNew(Poll);
             Send(NetworkQualifier, IdentifyCommand, _localId.ToByteArray());
         }
 
@@ -140,8 +140,16 @@ namespace NBlockchain.Services.Net
         {
             Task.Factory.StartNew(() =>
             {
-                SpinWait.SpinUntil(() => _pollExited);
-                _client.Dispose();
+                try
+                {
+                    _cancelToken.Cancel();
+                    SpinWait.SpinUntil(() => _pollExited);
+                    _client.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    OnPeerException?.Invoke(this, ex);
+                }
             });
         }
 

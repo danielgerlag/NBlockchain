@@ -10,5 +10,6 @@ namespace NBlockchain.Models
         public DateTime LastContact { get; set; }
         public bool IsSelf { get; set; }
         public Guid NodeId { get; set; }
+        public bool Unreachable { get; set; }
     }
 }
