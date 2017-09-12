@@ -157,8 +157,7 @@ namespace ScratchPad
                 x.UseParameters(new StaticNetworkParameters()
                 {
                     BlockTime = TimeSpan.FromSeconds(10),                    
-                    HeaderVersion = 1,
-                    ExpectedContentThreshold = 0.8m
+                    HeaderVersion = 1
                 });
             });
 

@@ -4,6 +4,7 @@ using NBlockchain.Services;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using NBlockchain.Rules;
 
 namespace DigitalCurrency.Rules
 {

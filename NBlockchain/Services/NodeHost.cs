@@ -19,7 +19,7 @@ namespace NBlockchain.Services
         private readonly ILogger _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IDateTimeProvider _dateTimeProvider;
-        private readonly ITransactionKeyResolver _transactionKeyResolver;        
+        private readonly IExpectedBlockList _expectedBlockList;
         private readonly IPeerNetwork _peerNetwork;
         private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);
         private readonly IPendingTransactionList _pendingTransactionList;
@@ -28,17 +28,17 @@ namespace NBlockchain.Services
         private readonly Timer _pollTimer;
         
 
-        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, ITransactionKeyResolver transactionKeyResolver, IPendingTransactionList pendingTransactionList, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator)
+        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, IPendingTransactionList pendingTransactionList, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator, IExpectedBlockList expectedBlockList)
         {
             _blockRepository = blockRepository;
             _blockVerifier = blockVerifier;        
             _serviceProvider = serviceProvider;
             _parameters = parameters;
             _dateTimeProvider = dateTimeProvider;
-            _transactionKeyResolver = transactionKeyResolver;
             _pendingTransactionList = pendingTransactionList;
             _peerNetwork = peerNetwork;
             _difficultyCalculator = difficultyCalculator;
+            _expectedBlockList = expectedBlockList;
             _logger = loggerFactory.CreateLogger<NodeHost>();
 
             _peerNetwork.RegisterBlockReceiver(this);
@@ -83,15 +83,13 @@ namespace NBlockchain.Services
                     _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Demerit;
                 }
+                
+                if (!_blockVerifier.VerifyBlockRules(block, true))
+                {
+                    _logger.LogWarning($"Block rules failed for {BitConverter.ToString(block.Header.BlockId)}");
+                    return PeerDataResult.Ignore;
+                }
 
-                var contentTxnIds = block.Transactions.Select(x => _transactionKeyResolver.ResolveKey(x)).ToList();
-
-                //if (!_blockVerifier.VerifyContentThreshold(contentTxnIds, _pendingTransactionList.Get))
-                //{
-                //    _logger.LogWarning($"Block content verification failed for {BitConverter.ToString(block.Header.BlockId)}");
-                //    return PeerDataResult.Ignore;
-                //}
-                                
                 await _blockRepository.AddBlock(block);
                 _pendingTransactionList.Remove(block.Transactions);
 
@@ -125,6 +123,12 @@ namespace NBlockchain.Services
                 {
                     _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Demerit;
+                }
+
+                if (!_blockVerifier.VerifyBlockRules(block, false))
+                {
+                    _logger.LogWarning($"Block rules failed for {BitConverter.ToString(block.Header.BlockId)}");
+                    return PeerDataResult.Ignore;
                 }
 
                 await _blockRepository.AddBlock(block);
@@ -175,6 +179,7 @@ namespace NBlockchain.Services
             if (prevHeader == null)
             {
                 _logger.LogDebug("Requesting head block");
+                _expectedBlockList.ExpectNext(Block.HeadKey);
                 _peerNetwork.RequestNextBlock(Block.HeadKey);
                 return;
             }
@@ -182,6 +187,7 @@ namespace NBlockchain.Services
             //if ((DateTime.UtcNow.Ticks - prevHeader.Timestamp) > _parameters.BlockTime.Ticks)
             {
                 _logger.LogDebug($"Requesting missing block after {BitConverter.ToString(prevHeader.BlockId)}");
+                _expectedBlockList.ExpectNext(prevHeader.BlockId);
                 _peerNetwork.RequestNextBlock(prevHeader.BlockId);
             }
         }

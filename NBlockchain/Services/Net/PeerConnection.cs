@@ -144,7 +144,8 @@ namespace NBlockchain.Services.Net
                 {
                     _cancelToken.Cancel();
                     SpinWait.SpinUntil(() => _pollExited);
-                    _client.Dispose();
+                    _client?.GetStream().Close();
+                    _client?.Dispose();
                 }
                 catch (Exception ex)
                 {

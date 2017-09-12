@@ -10,6 +10,7 @@ using NBlockchain.Services.Database;
 using NBlockchain.Services.Hashers;
 using NBlockchain.Services.Net;
 using NBlockchain.Services.PeerDiscovery;
+using NBlockchain.Rules;
 
 namespace NBlockchain.Models
 {
@@ -92,6 +93,12 @@ namespace NBlockchain.Models
             Services.AddTransient(typeof(ITransactionRule), typeof(T));
         }
 
+        public void AddBlockRule<T>()
+            where T : IBlockRule
+        {
+            Services.AddTransient(typeof(IBlockRule), typeof(T));
+        }
+
         public void AddPeerDiscovery<T>()
             where T : IPeerDiscoveryService
         {
@@ -101,6 +108,11 @@ namespace NBlockchain.Models
         public void AddPeerDiscovery(Func<IServiceProvider, IPeerDiscoveryService> factory)
         {
             Services.AddTransient<IPeerDiscoveryService>(factory);
+        }
+
+        public void AddContentThresholdBlockRule(decimal threshold)
+        {
+            Services.AddTransient(typeof(IBlockRule), sp => new BlockContentThresholdRule(sp.GetService<IPendingTransactionList>(), threshold));
         }
 
         public void UseMulticastDiscovery(string serviceId, string multicastAddress, int port)
@@ -129,8 +141,7 @@ namespace NBlockchain.Models
             AddDefault<INetworkParameters>(ServiceLifetime.Singleton, x => new StaticNetworkParameters()
             {
                 BlockTime = TimeSpan.FromMinutes(1),                
-                HeaderVersion = 1,
-                ExpectedContentThreshold = 0.8m
+                HeaderVersion = 1
             });
 
             AddDefault<IHasher, SHA256Hasher>(ServiceLifetime.Transient);
@@ -160,6 +171,7 @@ namespace NBlockchain.Models
             AddDefault<IOwnAddressResolver, OwnAddressResolver>(ServiceLifetime.Singleton);
 
             AddDefault<IPendingTransactionList, PendingTransactionList>(ServiceLifetime.Singleton);
+            AddDefault<IExpectedBlockList, ExpectedBlockList>(ServiceLifetime.Singleton);
 
 
         }

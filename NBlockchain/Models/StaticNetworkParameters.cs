@@ -9,6 +9,5 @@ namespace NBlockchain.Models
     {
         public TimeSpan BlockTime { get; set; }        
         public uint HeaderVersion { get; set; }
-        public decimal ExpectedContentThreshold { get; set; }
     }
 }

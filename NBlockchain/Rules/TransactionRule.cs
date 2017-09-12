@@ -8,7 +8,7 @@ using NBlockchain.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace NBlockchain.Services
+namespace NBlockchain.Rules
 {
     public abstract class TransactionRule<T> : ITransactionRule
         where T : class

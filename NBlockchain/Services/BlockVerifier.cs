@@ -12,7 +12,8 @@ namespace NBlockchain.Services
     public class BlockVerifier : IBlockVerifier
     {
         private readonly INetworkParameters _parameters;
-        private readonly IEnumerable<ITransactionRule> _txnValidators;
+        private readonly IEnumerable<ITransactionRule> _txnRules;
+        private readonly IEnumerable<IBlockRule> _blockRules;
         private readonly IEnumerable<ValidTransactionType> _validTxnTypes;
         private readonly IAddressEncoder _addressEncoder;
         private readonly ISignatureService _signatureService;
@@ -22,12 +23,13 @@ namespace NBlockchain.Services
         private readonly ITransactionKeyResolver _transactionKeyResolver;
         private readonly IEqualityComparer<byte[]> _byteArrayEqualityComparer = new ByteArrayEqualityComparer();
 
-        public BlockVerifier(INetworkParameters parameters, IAddressEncoder addressEncoder, ISignatureService signatureService, IEnumerable<ITransactionRule> txnValidators, IEnumerable<ValidTransactionType> validTxnTypes, IMerkleTreeBuilder merkleTreeBuilder, ITransactionKeyResolver transactionKeyResolver, IHashTester hashTester, IHasher hasher)
+        public BlockVerifier(INetworkParameters parameters, IAddressEncoder addressEncoder, ISignatureService signatureService, IEnumerable<ITransactionRule> txnRules, IEnumerable<IBlockRule> blockRules, IEnumerable<ValidTransactionType> validTxnTypes, IMerkleTreeBuilder merkleTreeBuilder, ITransactionKeyResolver transactionKeyResolver, IHashTester hashTester, IHasher hasher)
         {
             _parameters = parameters;
             _addressEncoder = addressEncoder;
             _signatureService = signatureService;
-            _txnValidators = txnValidators;
+            _txnRules = txnRules;
+            _blockRules = blockRules;
             _validTxnTypes = validTxnTypes;
             _merkleTreeBuilder = merkleTreeBuilder;
             _transactionKeyResolver = transactionKeyResolver;
@@ -62,14 +64,14 @@ namespace NBlockchain.Services
             return true;
         }
 
-        public bool VerifyContentThreshold(ICollection<byte[]> actual, ICollection<byte[]> expected)
+        public bool VerifyBlockRules(Block block, bool tail)
         {
-            if (expected.Count == 0)
-                return true;
-
-            var count = expected.Count(txn => actual.Contains(txn, _byteArrayEqualityComparer));
-            var ratio = (decimal)count / (decimal)expected.Count;
-            return (ratio >= _parameters.ExpectedContentThreshold);
+            foreach (var rule in _blockRules.Where(x => x.TailRule == tail || tail))
+            {
+                if (!rule.Validate(block))
+                    return false;
+            }
+            return true;
         }
 
         public int VerifyTransaction(TransactionEnvelope transaction, ICollection<TransactionEnvelope> siblings)
@@ -85,7 +87,7 @@ namespace NBlockchain.Services
             if (!_signatureService.VerifyTransaction(transaction))
                 return -3;
 
-            foreach (var validator in _txnValidators.Where(v => v.TransactionType == transaction.TransactionType))
+            foreach (var validator in _txnRules.Where(v => v.TransactionType == transaction.TransactionType))
                 result = result & validator.Validate(transaction, siblings);
 
             return result;

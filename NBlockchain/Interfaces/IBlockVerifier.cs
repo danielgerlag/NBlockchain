@@ -7,7 +7,7 @@ namespace NBlockchain.Interfaces
     {
         bool Verify(Block block);
 
-        bool VerifyContentThreshold(ICollection<byte[]> actual, ICollection<byte[]> expected);
+        bool VerifyBlockRules(Block block, bool tail);
 
         int VerifyTransaction(TransactionEnvelope transaction, ICollection<TransactionEnvelope> siblings);
     }

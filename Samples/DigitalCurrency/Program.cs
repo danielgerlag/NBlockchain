@@ -41,8 +41,7 @@ namespace DigitalCurrency
                 x.UseParameters(new StaticNetworkParameters()
                 {
                     BlockTime = TimeSpan.FromSeconds(120),                    
-                    HeaderVersion = 1,
-                    ExpectedContentThreshold = 0.8m
+                    HeaderVersion = 1
                 });
             });
 
@@ -75,8 +74,7 @@ namespace DigitalCurrency
                 x.UseParameters(new StaticNetworkParameters()
                 {
                     BlockTime = TimeSpan.FromSeconds(120),
-                    HeaderVersion = 1,
-                    ExpectedContentThreshold = 0.8m
+                    HeaderVersion = 1
                 });
             });
 
