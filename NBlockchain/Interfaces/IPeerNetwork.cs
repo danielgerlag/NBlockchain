@@ -20,7 +20,7 @@ namespace NBlockchain.Interfaces
 
         void RegisterTransactionReceiver(ITransactionReceiver transactionReciever);
 
-        void DiscoverPeers();
+        Task DiscoverPeers();
 
         void Open();
 

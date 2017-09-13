@@ -49,10 +49,17 @@ namespace NBlockchain.Services
                 
         public async Task<PeerDataResult> RecieveTail(Block block)
         {
+            if (!_expectedBlockList.IsExpected(block.Header.PreviousBlock))
+            {
+                _logger.LogDebug($"Unexpected next block for {BitConverter.ToString(block.Header.PreviousBlock)}");
+                return PeerDataResult.Ignore;
+            }
+
             _blockEvent.WaitOne();
             try
             {
                 _logger.LogDebug($"Recv tail {BitConverter.ToString(block.Header.BlockId)}");
+                _expectedBlockList.Confirm(block.Header.PreviousBlock);
                 
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                     return PeerDataResult.Ignore;
@@ -105,11 +112,17 @@ namespace NBlockchain.Services
 
         public async Task<PeerDataResult> RecieveBlock(Block block)
         {
+            if (!_expectedBlockList.IsExpected(block.Header.PreviousBlock))
+            {
+                _logger.LogDebug($"Unexpected next block for {BitConverter.ToString(block.Header.PreviousBlock)}");
+                return PeerDataResult.Ignore;
+            }
+
             _blockEvent.WaitOne();
             try
             {
                 _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)}");
-
+                _expectedBlockList.Confirm(block.Header.PreviousBlock);
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                     return PeerDataResult.Ignore;
 

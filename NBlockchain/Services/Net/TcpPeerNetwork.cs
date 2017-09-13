@@ -40,6 +40,7 @@ namespace NBlockchain.Services.Net
         private TcpListener _listener;
 
         private readonly AutoResetEvent _peerEvent = new AutoResetEvent(true);
+        private readonly AutoResetEvent _connectOutEvent = new AutoResetEvent(true);
 
         private Timer _sharePeersTimer;
         private Timer _discoveryTimer;
@@ -111,9 +112,9 @@ namespace NBlockchain.Services.Net
             DiscoverOwnConnectionStrings();
             AdvertiseToPeers();
 
-            _discoveryTimer = new Timer((state) =>
+            _discoveryTimer = new Timer(async (state) =>
             {
-                DiscoverPeers();                
+                await DiscoverPeers();                
             }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30));
 
             _sharePeersTimer = new Timer(SharePeers, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
@@ -352,25 +353,22 @@ namespace NBlockchain.Services.Net
             }
         }
 
-        public void DiscoverPeers()
+        public async Task DiscoverPeers()
         {
-            foreach (var discovery in _discoveryServices)
+            Parallel.ForEach(_discoveryServices, async discovery =>
             {
-                Task.Factory.StartNew(async () =>
+                try
                 {
-                    try
-                    {
-                        var newPeers = await discovery.DiscoverPeers();
-                        foreach (var np in newPeers)
-                            AddPeer(np);
-                        ConnectOut();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex.Message);
-                    }
-                });
-            }
+                    var newPeers = await discovery.DiscoverPeers();
+                    foreach (var np in newPeers)
+                        AddPeer(np);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.Message);
+                }
+            });
+            await ConnectOut();
         }
 
         private void AddPeer(KnownPeer newPeer)
@@ -385,39 +383,46 @@ namespace NBlockchain.Services.Net
                 await ds.SharePeers(_peerRoundRobin.ToList());
         }
                 
-        private void ConnectOut()
+        private async Task ConnectOut()
         {
             var activePeers = GetActivePeers();
-            var peersOut = activePeers.Where(x => x.Outgoing);
+            var peersOut = activePeers.Where(x => x.Outgoing).ToList();
             var target = (TargetOutgoingCount - peersOut.Count());
             if (target <= 0)
                 return;
 
             var actual = 0;
             var counter = 0;
-            lock (_peerRoundRobin)
+
+            _connectOutEvent.WaitOne();
+            try
             {
                 while ((actual < target) && (counter < _peerRoundRobin.Count))
                 {
-                    if (_peerRoundRobin.TryDequeue(out var kp))
-                    {
-                        _peerRoundRobin.Enqueue(kp);
-                        counter++;
+                    counter++;
 
-                        if (kp.IsSelf)
-                            continue;
+                    if (!_peerRoundRobin.TryDequeue(out var kp))
+                        continue;
 
-                        if (peersOut.Any(x => x.ConnectionString == kp.ConnectionString))
-                            continue;
+                    _peerRoundRobin.Enqueue(kp);
 
-                        if (activePeers.Any(x => x.RemoteId == kp.NodeId))
-                            continue;
+                    if (kp.IsSelf)
+                        continue;
 
-                        _logger.LogInformation($"Connecting to {kp.ConnectionString}");
-                        OnboardPeer(kp.ConnectionString);
-                        actual++;
-                    }
+                    if (peersOut.Any(x => x.ConnectionString == kp.ConnectionString))
+                        continue;
+
+                    if (activePeers.Any(x => x.RemoteId == kp.NodeId))
+                        continue;
+
+                    _logger.LogInformation($"Connecting to {kp.ConnectionString}");
+                    await OnboardPeer(kp.ConnectionString);
+                    actual++;
                 }
+            }
+            finally
+            {
+                _connectOutEvent.Set();
             }
         }
 

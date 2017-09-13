@@ -34,9 +34,11 @@ namespace NBlockchain.Services.Net
             _transactionReciever = transactionReciever;
         }
 
-        public void DiscoverPeers()
+#pragma warning disable CS1998
+        public async Task DiscoverPeers()
         {
         }
+#pragma warning restore CS1998
 
         public void Open()
         {
