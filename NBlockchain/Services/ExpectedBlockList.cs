@@ -71,7 +71,7 @@ namespace NBlockchain.Services
             _resetEvt.WaitOne();
             try
             {
-                var keys = _expectedExpiries.Keys;
+                var keys = new List<byte[]>(_expectedExpiries.Keys);
                 foreach (var key in keys)
                 {
                     if (_expectedExpiries[key] < DateTime.Now)
