@@ -68,7 +68,7 @@ namespace NBlockchain.Models
 
         public void UseTcpPeerNetwork(uint port)
         {
-            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>(), sp.GetService<IPendingTransactionList>()));
+            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>(), sp.GetService<IUnconfirmedTransactionCache>()));
         }
 
         public void UseDataConnection(string connectionString)
@@ -112,7 +112,7 @@ namespace NBlockchain.Models
 
         public void AddContentThresholdBlockRule(decimal threshold)
         {
-            Services.AddTransient(typeof(IBlockRule), sp => new BlockContentThresholdRule(sp.GetService<IPendingTransactionList>(), threshold));
+            Services.AddTransient(typeof(IBlockRule), sp => new BlockContentThresholdRule(sp.GetService<IUnconfirmedTransactionCache>(), threshold));
         }
 
         public void UseMulticastDiscovery(string serviceId, string multicastAddress, int port)
@@ -121,19 +121,19 @@ namespace NBlockchain.Models
         }
 
         public void UseTransactionRepository<TService, TImplementation>()
-            where TImplementation : TransactionRepository, TService
+            where TImplementation : InstructionRepository, TService
             where TService : class
         {
             Services.AddTransient<TService, TImplementation>();
         }
 
-        public void AddTransactionType<T>()
+        public void AddInstructionType<T>()
         {
-            var attr = typeof(T).GetTypeInfo().GetCustomAttribute<TransactionTypeAttribute>();
+            var attr = typeof(T).GetTypeInfo().GetCustomAttribute<InstructionTypeAttribute>();
             if (attr == null)
-                throw new NotSupportedException("Missing TransactionTypeAttribute");
+                throw new NotSupportedException("Missing InstructionTypeAttribute");
 
-            Services.AddSingleton<ValidTransactionType>(new ValidTransactionType(attr.TypeId, typeof(T)));
+            Services.AddSingleton<ValidInstructionType>(new ValidInstructionType(attr.TypeIdentifier, typeof(T)));
         }
         
         internal void FillDefaults()
@@ -157,6 +157,7 @@ namespace NBlockchain.Models
 
             AddDefault<IDataConnection, DataConnection>(ServiceLifetime.Singleton);
             AddDefault<IBlockRepository, DefaultBlockRepository>(ServiceLifetime.Singleton);
+            AddDefault<IInstructionRepository, InstructionRepository>(ServiceLifetime.Singleton);
             //AddDefault<IPeerDiscoveryService, DefaultPeerRepository>(ServiceLifetime.Singleton);
 
             //AddDefault<IBlockRepository, InMemoryBlockRepository>(ServiceLifetime.Singleton);
@@ -170,9 +171,10 @@ namespace NBlockchain.Models
             
             AddDefault<IOwnAddressResolver, OwnAddressResolver>(ServiceLifetime.Singleton);
 
-            AddDefault<IPendingTransactionList, PendingTransactionList>(ServiceLifetime.Singleton);
+            AddDefault<IUnconfirmedTransactionCache, UnconfirmedTransactionCache>(ServiceLifetime.Singleton);
             AddDefault<IExpectedBlockList, ExpectedBlockList>(ServiceLifetime.Singleton);
 
+            AddDefault<ITransactionBuilder, TransactionBuilder>(ServiceLifetime.Singleton);
 
         }
 

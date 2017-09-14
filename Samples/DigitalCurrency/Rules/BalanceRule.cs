@@ -4,28 +4,35 @@ using NBlockchain.Models;
 using NBlockchain.Services;
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using NBlockchain.Rules;
+using NBlockchain.Interfaces;
 
 namespace DigitalCurrency.Rules
 {
-    public class BalanceRule : TransactionRule<TransferTransaction>
+    public class BalanceRule : ITransactionRule
     {
-        private readonly ICustomTransactionRepository _txnRepo;
+        private readonly ICustomInstructionRepository _txnRepo;
+        private readonly IAddressEncoder _addressEncoder;
 
-        public BalanceRule(ICustomTransactionRepository txnRepo)
+        public BalanceRule(ICustomInstructionRepository txnRepo, IAddressEncoder addressEncoder)
         {
             _txnRepo = txnRepo;
+            _addressEncoder = addressEncoder;
         }
-
-        protected override int Validate(TransactionEnvelope envelope, TransferTransaction transaction, ICollection<TransactionEnvelope> siblings)
+        
+        public int Validate(Transaction transaction, ICollection<Transaction> siblings)
         {
-            if (transaction.Amount < 0)
+            if (transaction.Instructions.OfType<TransferInstruction>().Any(x => x.Amount < 0))
                 return 1;
-
-            var balance = _txnRepo.GetAccountBalance(envelope.Originator);
-            if (transaction.Amount > balance)
-                return 2;
+            
+            foreach (var instruction in transaction.Instructions.OfType<TransferInstruction>())
+            {
+                var sourceAddr = _addressEncoder.EncodeAddress(instruction.PublicKey, 0);
+                var balance = _txnRepo.GetAccountBalance(sourceAddr);
+                if (instruction.Amount > balance)
+                    return 2;
+            }
 
             return 0;
         }

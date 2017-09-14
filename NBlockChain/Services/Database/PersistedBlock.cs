@@ -16,21 +16,7 @@ namespace NBlockchain.Services.Database
         {
             Entity = new BlockInfo(block);
             Statistics = new BlockStatistics();
-        }
-    }
-
-    public class PersistedTransaction : PersistedEntity<TransactionEnvelope, ObjectId>
-    {
-        public byte[] BlockId { get; set; }
-
-        public PersistedTransaction()
-        {
-        }
-
-        public PersistedTransaction(byte[] blockId, TransactionEnvelope txn)
-        {
-            Entity = txn;
-            BlockId = blockId;
+            Statistics.TimeStamp = new DateTime(block.Header.Timestamp);
         }
     }
 

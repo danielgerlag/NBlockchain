@@ -5,11 +5,11 @@ using System.Text;
 
 namespace DigitalCurrency.Transactions
 {    
-    [TransactionType("txn-v1")]
-    public class TransferTransaction : ValueTransaction
+    [InstructionType("txn-v1")]
+    public class TransferInstruction : ValueInstruction
     {
         public string Message { get; set; }
 
-        public string Destination { get; set; }
+        public byte[] Destination { get; set; }
     }
 }

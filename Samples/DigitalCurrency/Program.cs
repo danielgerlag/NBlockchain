@@ -21,85 +21,23 @@ namespace DigitalCurrency
         private static IPeerNetwork _network;
         private static ISignatureService _sigService;
         private static IAddressEncoder _addressEncoder;
-        private static ICustomTransactionRepository _txnRepo;
+        private static ICustomInstructionRepository _txnRepo;
         private static IBlockRepository _blockRepo;
-
-        private static IServiceProvider ConfigureForLiteDb(string db, uint port)
-        {
-            IServiceCollection services = new ServiceCollection();
-            services.AddBlockchain(x =>
-            {                
-                x.UseDataConnection("node.db");
-                x.UseTransactionRepository<ICustomTransactionRepository, CustomTransactionRepository>();
-                x.UseTcpPeerNetwork(port);                
-                x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
-                x.AddTransactionType<TransferTransaction>();
-                x.AddTransactionType<CoinbaseTransaction>();
-                x.AddTransactionRule<BalanceRule>();
-                x.AddTransactionRule<CoinbaseRule>();
-                x.UseBlockbaseProvider<CoinbaseBuilder>();
-                x.UseParameters(new StaticNetworkParameters()
-                {
-                    BlockTime = TimeSpan.FromSeconds(120),                    
-                    HeaderVersion = 1
-                });
-            });
-
-            services.AddLogging();
-            var serviceProvider = services.BuildServiceProvider();
-
-            //config logging
-            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-            loggerFactory.AddDebug();
-            loggerFactory.AddFile("node.log", LogLevel.Debug);            
-
-            return serviceProvider;
-        }
-
-        private static IServiceProvider ConfigureForMongoDB(string db, uint port)
-        {
-            IServiceCollection services = new ServiceCollection();
-            services.AddBlockchain(x =>
-            {                
-                x.UseTcpPeerNetwork(port);
-                x.UseMongoDB(@"mongodb://localhost:27017", db)
-                    .UseTransactionRepository<ICustomTransactionRepository, CustomMongoTransactionRepository>();
-                //x.AddPeerDiscovery(sp => new StaticPeerDiscovery("tcp://localhost:503"));
-                x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
-                x.AddTransactionType<TransferTransaction>();
-                x.AddTransactionType<CoinbaseTransaction>();
-                x.AddTransactionRule<BalanceRule>();
-                x.AddTransactionRule<CoinbaseRule>();
-                x.UseBlockbaseProvider<CoinbaseBuilder>();
-                x.UseParameters(new StaticNetworkParameters()
-                {
-                    BlockTime = TimeSpan.FromSeconds(120),
-                    HeaderVersion = 1
-                });
-            });
-
-            services.AddLogging();
-            var serviceProvider = services.BuildServiceProvider();
-
-            //config logging
-            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-            loggerFactory.AddDebug();
-            loggerFactory.AddFile("node.log", LogLevel.Debug);
-
-            return serviceProvider;
-        }
-
+        private static ITransactionBuilder _txnBuilder;
+        
         static void Main(string[] args)
         {
-            var serviceProvider = ConfigureForMongoDB("DigitalCurrency", 10500);
+            //var serviceProvider = ConfigureForMongoDB("DigitalCurrency", 10500);
+            var serviceProvider = ConfigureForLiteDb("node.db", 10500);
 
             _host = serviceProvider.GetService<INodeHost>();
             _miner = serviceProvider.GetService<IBlockMiner>();
             _network = serviceProvider.GetService<IPeerNetwork>();
             _sigService = serviceProvider.GetService<ISignatureService>();
             _addressEncoder = serviceProvider.GetService<IAddressEncoder>();
-            _txnRepo = serviceProvider.GetService<ICustomTransactionRepository>();
+            _txnRepo = serviceProvider.GetService<ICustomInstructionRepository>();
             _blockRepo = serviceProvider.GetService<IBlockRepository>();
+            _txnBuilder = serviceProvider.GetService<ITransactionBuilder>();
 
             Console.WriteLine("Generating key pair...");
             var keys = _sigService.GenerateKeyPair();            
@@ -120,6 +58,73 @@ namespace DigitalCurrency
                 RunCommand(command, keys);
             }
             _network.Close();
+        }
+
+        private static IServiceProvider ConfigureForLiteDb(string db, uint port)
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddBlockchain(x =>
+            {
+                x.UseDataConnection("node.db");
+                x.UseTransactionRepository<ICustomInstructionRepository, CustomInstructionRepository>();
+                x.UseTcpPeerNetwork(port);
+                x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
+                x.AddInstructionType<TransferInstruction>();
+                x.AddInstructionType<CoinbaseInstruction>();
+                x.AddTransactionRule<BalanceRule>();
+                x.AddTransactionRule<CoinbaseTransactionRule>();
+                x.AddBlockRule<CoinbaseBlockRule>();
+                x.UseBlockbaseProvider<CoinbaseBuilder>();
+                x.UseParameters(new StaticNetworkParameters()
+                {
+                    BlockTime = TimeSpan.FromSeconds(120),
+                    HeaderVersion = 1
+                });
+            });
+
+            services.AddLogging();
+            var serviceProvider = services.BuildServiceProvider();
+
+            //config logging
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+            loggerFactory.AddDebug();
+            loggerFactory.AddFile("node.log", LogLevel.Debug);
+
+            return serviceProvider;
+        }
+
+        private static IServiceProvider ConfigureForMongoDB(string db, uint port)
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddBlockchain(x =>
+            {
+                x.UseTcpPeerNetwork(port);
+                x.UseMongoDB(@"mongodb://localhost:27017", db)
+                    .UseInstructionRepository<ICustomInstructionRepository, CustomMongoInstructionRepository>();
+                //x.AddPeerDiscovery(sp => new StaticPeerDiscovery("tcp://localhost:503"));
+                x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
+                x.AddInstructionType<TransferInstruction>();
+                x.AddInstructionType<CoinbaseInstruction>();
+                x.AddTransactionRule<BalanceRule>();
+                x.AddTransactionRule<CoinbaseTransactionRule>();
+                x.AddBlockRule<CoinbaseBlockRule>();
+                x.UseBlockbaseProvider<CoinbaseBuilder>();
+                x.UseParameters(new StaticNetworkParameters()
+                {
+                    BlockTime = TimeSpan.FromSeconds(120),
+                    HeaderVersion = 1
+                });
+            });
+
+            services.AddLogging();
+            var serviceProvider = services.BuildServiceProvider();
+
+            //config logging
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+            loggerFactory.AddDebug();
+            loggerFactory.AddFile("node.log", LogLevel.Debug);
+
+            return serviceProvider;
         }
 
 
@@ -175,22 +180,19 @@ namespace DigitalCurrency
                         return;
                     }
 
-                    var txn = new TransferTransaction()
+                    var instruction = new TransferInstruction()
                     {
+                        PublicKey = keys.PublicKey,
                         Amount = Convert.ToInt32(args[2]),
-                        Destination = args[1]
+                        Destination = _addressEncoder.ExtractPublicKeyHash(args[1])
                     };
 
-                    var txnEenv = new TransactionEnvelope(txn)
-                    {
-                        OriginKey = Guid.NewGuid(),
-                        TransactionType = "txn-v1",
-                        Originator = ownAddress
-                    };
-                    Console.WriteLine($"Singing transaction {txnEenv.OriginKey}");
-                    _sigService.SignTransaction(txnEenv, keys.PrivateKey);
-                    Console.WriteLine($"Sending transaction {txnEenv.OriginKey}");
-                    _host.SendTransaction(txnEenv);
+                    Console.WriteLine($"Signing instruction");
+                    _sigService.SignInstruction(instruction, keys.PrivateKey);
+                    var txn = _txnBuilder.Build(new List<Instruction>() { instruction }).Result;
+
+                    Console.WriteLine($"Sending transaction {BitConverter.ToString(txn.TransactionId)}");
+                    _host.SendTransaction(txn);
                     break;
                 default:
                     Console.WriteLine("invalid command");

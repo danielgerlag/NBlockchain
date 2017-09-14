@@ -15,20 +15,25 @@ namespace NBlockchain.Services.Database
     {
         private readonly ILogger _logger;
         private readonly IDataConnection _connection;
+        private readonly IAddressEncoder _addressEncoder;
 
         protected LiteCollection<PersistedBlock> Blocks => _connection.Database.GetCollection<PersistedBlock>("Blocks");
-        protected LiteCollection<PersistedTransaction> Txns => _connection.Database.GetCollection<PersistedTransaction>("Txns");
+        protected LiteCollection<PersistedInstruction> Instructions => _connection.Database.GetCollection<PersistedInstruction>("Instructions");
 
-        public DefaultBlockRepository(ILoggerFactory loggerFactory, IDataConnection connection)
+        public DefaultBlockRepository(ILoggerFactory loggerFactory, IDataConnection connection, IAddressEncoder addressEncoder)
         {
             _connection = connection;
+            _addressEncoder = addressEncoder;
             _logger = loggerFactory.CreateLogger<DefaultBlockRepository>();
             
             Blocks.EnsureIndex(x => x.Entity.Header.BlockId);
             Blocks.EnsureIndex(x => x.Entity.Header.PreviousBlock);
             Blocks.EnsureIndex(x => x.Entity.Header.Height);
-            Txns.EnsureIndex(x => x.BlockId);
-            Txns.EnsureIndex(x => x.Entity.Originator);
+            Instructions.EnsureIndex(x => x.BlockId);
+            Instructions.EnsureIndex(x => x.TransactionId);
+            Instructions.EnsureIndex(x => x.Entity.InstructionId);
+            Instructions.EnsureIndex(x => x.Entity.PublicKey);
+            Instructions.EnsureIndex(x => x.Statistics.PublicKeyHash);
         }
 
         public Task AddBlock(Block block)
@@ -44,10 +49,11 @@ namespace NBlockchain.Services.Database
 
             Blocks.Insert(persisted);
 
-
-            var pt = block.Transactions.Select(txn => new PersistedTransaction(block.Header.BlockId, txn)).ToList();
-
-            Txns.InsertBulk(pt);
+            foreach (var txn in block.Transactions)
+            {
+                var pt = txn.Instructions.Select(ins => new PersistedInstruction(block.Header.BlockId, txn.TransactionId, ins, _addressEncoder.HashPublicKey(ins.PublicKey))).ToList();
+                Instructions.InsertBulk(pt);
+            }
 
             return Task.CompletedTask;
         }
@@ -71,7 +77,7 @@ namespace NBlockchain.Services.Database
 
             var max = Blocks.Max<uint>(x => x.Entity.Header.Height).AsInt64;
             var block = Blocks.Find(Query.EQ("Entity.Header.Height", max)).First();
-            return await Task.FromResult(block?.Entity.Header);
+            return block?.Entity.Header;
         }
 
         public Task<Block> GetNextBlock(byte[] prevBlockId)
@@ -85,8 +91,11 @@ namespace NBlockchain.Services.Database
             result.Header = blockHeader.Entity.Header;
             result.MerkleRootNode = blockHeader.Entity.MerkleRootNode;
 
-            var txns = Txns.Find(Query.EQ("BlockId", blockHeader.Entity.Header.BlockId));
-            result.Transactions = txns.Select(x => x.Entity).ToList();
+            var instructions = Instructions.Find(Query.EQ("BlockId", blockHeader.Entity.Header.BlockId));
+            result.Transactions = instructions
+                .GroupBy(x => x.TransactionId, new ByteArrayEqualityComparer())
+                .Select(x =>  new Transaction(x.Select(y => y.Entity).ToList()) { TransactionId = x.Key })
+                .ToList();
 
             return Task.FromResult(result);
         }

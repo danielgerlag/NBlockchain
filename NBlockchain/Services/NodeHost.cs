@@ -22,20 +22,20 @@ namespace NBlockchain.Services
         private readonly IExpectedBlockList _expectedBlockList;
         private readonly IPeerNetwork _peerNetwork;
         private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);
-        private readonly IPendingTransactionList _pendingTransactionList;
+        private readonly IUnconfirmedTransactionCache _unconfirmedTransactionCache;
         private readonly IDifficultyCalculator _difficultyCalculator;
 
         private readonly Timer _pollTimer;
         
 
-        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, IPendingTransactionList pendingTransactionList, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator, IExpectedBlockList expectedBlockList)
+        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, IUnconfirmedTransactionCache unconfirmedTransactionCache, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator, IExpectedBlockList expectedBlockList)
         {
             _blockRepository = blockRepository;
             _blockVerifier = blockVerifier;        
             _serviceProvider = serviceProvider;
             _parameters = parameters;
             _dateTimeProvider = dateTimeProvider;
-            _pendingTransactionList = pendingTransactionList;
+            _unconfirmedTransactionCache = unconfirmedTransactionCache;
             _peerNetwork = peerNetwork;
             _difficultyCalculator = difficultyCalculator;
             _expectedBlockList = expectedBlockList;
@@ -59,7 +59,6 @@ namespace NBlockchain.Services
             try
             {
                 _logger.LogDebug($"Recv tail {BitConverter.ToString(block.Header.BlockId)}");
-                _expectedBlockList.Confirm(block.Header.PreviousBlock);
                 
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                     return PeerDataResult.Ignore;
@@ -85,20 +84,22 @@ namespace NBlockchain.Services
                         return PeerDataResult.Ignore;
                 }
 
-                if (!_blockVerifier.Verify(block))
+                if (!await _blockVerifier.Verify(block))
                 {
                     _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Demerit;
                 }
                 
-                if (!_blockVerifier.VerifyBlockRules(block, true))
+                if (!await _blockVerifier.VerifyBlockRules(block, true))
                 {
                     _logger.LogWarning($"Block rules failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Ignore;
                 }
 
                 await _blockRepository.AddBlock(block);
-                _pendingTransactionList.Remove(block.Transactions);
+                _unconfirmedTransactionCache.Remove(block.Transactions);
+                _expectedBlockList.Confirm(block.Header.PreviousBlock);
+                _expectedBlockList.ExpectNext(block.Header.BlockId);
 
                 _logger.LogDebug($"Accepted tail {BitConverter.ToString(block.Header.BlockId)}");                
 
@@ -122,7 +123,7 @@ namespace NBlockchain.Services
             try
             {
                 _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)}");
-                _expectedBlockList.Confirm(block.Header.PreviousBlock);
+                
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                     return PeerDataResult.Ignore;
 
@@ -132,19 +133,20 @@ namespace NBlockchain.Services
                         return PeerDataResult.Ignore;
                 }
 
-                if (!_blockVerifier.Verify(block))
+                if (!await _blockVerifier.Verify(block))
                 {
                     _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Demerit;
                 }
 
-                if (!_blockVerifier.VerifyBlockRules(block, false))
+                if (!await _blockVerifier.VerifyBlockRules(block, false))
                 {
                     _logger.LogWarning($"Block rules failed for {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Ignore;
                 }
 
                 await _blockRepository.AddBlock(block);
+                _expectedBlockList.Confirm(block.Header.PreviousBlock);
 
                 _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
             }
@@ -157,28 +159,27 @@ namespace NBlockchain.Services
             return PeerDataResult.Ignore;
         }
 
-        public Task<PeerDataResult> RecieveTransaction(TransactionEnvelope transaction)
+        public async Task<PeerDataResult> RecieveTransaction(Transaction transaction)
         {            
-            _logger.LogDebug($"Recv txn {transaction.OriginKey} from {transaction.Originator}");            
-            var txnResult = _blockVerifier.VerifyTransaction(transaction, _pendingTransactionList.Get);
+            _logger.LogDebug($"Recv txn {BitConverter.ToString(transaction.TransactionId)}");
+            var txnResult = await _blockVerifier.VerifyTransaction(transaction, _unconfirmedTransactionCache.Get);
             
             if (txnResult == 0)
             {
-                //var txnKey = _transactionKeyResolver.ResolveKey(transaction);
-                if (_pendingTransactionList.Add(transaction))
+                if (_unconfirmedTransactionCache.Add(transaction))
                 {
-                    _logger.LogDebug($"Accepted txn {transaction.OriginKey} from {transaction.Originator}");
-                    return Task.FromResult(PeerDataResult.Relay);
+                    _logger.LogDebug($"Accepted txn {BitConverter.ToString(transaction.TransactionId)}");
+                    return PeerDataResult.Relay;
                 }
 
-                return Task.FromResult(PeerDataResult.Ignore);
+                return PeerDataResult.Ignore;
             }
-            _logger.LogDebug($"Rejected txn {transaction.OriginKey} from {transaction.Originator} code: {txnResult}");
-            return Task.FromResult(PeerDataResult.Ignore);
+            _logger.LogDebug($"Rejected txn {BitConverter.ToString(transaction.TransactionId)} code: {txnResult}");
+            return PeerDataResult.Ignore;
         }
                 
 
-        public async Task SendTransaction(TransactionEnvelope transaction)
+        public async Task SendTransaction(Transaction transaction)
         {
             _logger.LogDebug("Sending txn");
             await RecieveTransaction(transaction);

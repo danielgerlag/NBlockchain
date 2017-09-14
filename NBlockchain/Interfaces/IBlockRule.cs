@@ -8,7 +8,7 @@ namespace NBlockchain.Interfaces
 {
     public interface IBlockRule
     {
-        bool Validate(Block block);
+        Task<bool> Validate(Block block);
         bool TailRule { get; }
     }
 }

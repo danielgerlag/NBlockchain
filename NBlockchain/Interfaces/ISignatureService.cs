@@ -5,7 +5,7 @@ namespace NBlockchain.Interfaces
     public interface ISignatureService
     {
         KeyPair GenerateKeyPair();
-        void SignTransaction(TransactionEnvelope transaction, byte[] privateKey);
-        bool VerifyTransaction(TransactionEnvelope transaction);
+        void SignInstruction(Instruction instruction, byte[] privateKey);
+        bool VerifyInstruction(Instruction instruction);
     }
 }

@@ -4,15 +4,15 @@ using System.Text;
 
 namespace NBlockchain.Models
 {
-    public class ValidTransactionType
+    public class ValidInstructionType
     {
-        public string TransactionType { get; private set; }
+        public string InstructionType { get; private set; }
 
         public Type ClassType { get; private set; }
 
-        public ValidTransactionType(string transactionType, Type classType)
+        public ValidInstructionType(string instructionType, Type classType)
         {
-            TransactionType = transactionType;
+            InstructionType = instructionType;
             ClassType = classType;
         }
     }

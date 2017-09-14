@@ -23,7 +23,7 @@ namespace NBlockchain.Tests.Scenarios.NodeSync
             {
                 x.UseTcpPeerNetwork(port);
                 x.AddPeerDiscovery(sp => new StaticPeerDiscovery(peers));
-                x.AddTransactionType<TestTransaction>();
+                x.AddInstructionType<TestInstruction>();
                 x.UseBlockbaseProvider<BaseBuilder>();
                 x.UseParameters(new StaticNetworkParameters()
                 {

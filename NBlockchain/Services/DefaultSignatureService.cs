@@ -36,7 +36,7 @@ namespace NBlockchain.Services
             }
         }
 
-        public void SignTransaction(TransactionEnvelope transaction, byte[] privateKey)
+        public void SignInstruction(Instruction instruction, byte[] privateKey)
         {
             using (var dsa = ECDsa.Create(_curve))
             {                
@@ -50,23 +50,19 @@ namespace NBlockchain.Services
                         Y = privateKey.Skip((privateKey.Length / 3) * 2).Take(privateKey.Length / 3).ToArray()
                     }
                 });
+                instruction.OriginKey = GenerateOriginKey();
+                instruction.InstructionId = ResolveInstructionId(instruction);
+                var data = instruction.ExtractSignableElements();
 
-                var data = ExtractSignableElements(transaction);
-
-                transaction.Signature = dsa.SignData(data, _hashAlgorithm);
+                instruction.Signature = dsa.SignData(data, _hashAlgorithm);
             }
         }
 
-        public bool VerifyTransaction(TransactionEnvelope transaction)
+        public bool VerifyInstruction(Instruction instruction)
         {
-            if (transaction.Signature == null)
+            if (instruction.Signature == null)
                 return false;
-
-            if (!_addressEncoder.IsValidAddress(transaction.Originator))
-                return false;
-
-            var pubKey = _addressEncoder.ExtractPublicKey(transaction.Originator);
-
+            
             using (var dsa = ECDsa.Create(_curve))
             {
                 dsa.ImportParameters(new ECParameters()
@@ -74,26 +70,31 @@ namespace NBlockchain.Services
                     Curve = _curve,                    
                     Q = new ECPoint()
                     {
-                        X = pubKey.Take(pubKey.Length / 2).ToArray(),
-                        Y = pubKey.Skip(pubKey.Length / 2).Take(pubKey.Length / 2).ToArray()
+                        X = instruction.PublicKey.Take(instruction.PublicKey.Length / 2).ToArray(),
+                        Y = instruction.PublicKey.Skip(instruction.PublicKey.Length / 2).Take(instruction.PublicKey.Length / 2).ToArray()
                     }
                 });
 
-                var data = ExtractSignableElements(transaction);
+                if (!instruction.InstructionId.SequenceEqual(ResolveInstructionId(instruction)))
+                    return false;
 
-                return dsa.VerifyData(data, transaction.Signature, _hashAlgorithm);
+                var data = instruction.ExtractSignableElements();
+
+                return dsa.VerifyData(data, instruction.Signature, _hashAlgorithm);
+            }
+        }
+        
+        private static byte[] ResolveInstructionId(Instruction instruction)
+        {
+            using (var h = SHA256.Create())
+            {
+                return h.ComputeHash(instruction.OriginKey.Concat(instruction.PublicKey).ToArray());
             }
         }
 
-        private byte[] ExtractSignableElements(TransactionEnvelope txn)
+        private static byte[] GenerateOriginKey()
         {
-            var txnStr = JsonConvert.SerializeObject(txn.Transaction, Formatting.None);
-
-            var result = txn.OriginKey.ToByteArray()
-                .Concat(Encoding.Unicode.GetBytes(txn.Originator))
-                .Concat(Encoding.Unicode.GetBytes(txnStr));
-
-            return result.ToArray();
+            return Guid.NewGuid().ToByteArray();
         }
 
     }

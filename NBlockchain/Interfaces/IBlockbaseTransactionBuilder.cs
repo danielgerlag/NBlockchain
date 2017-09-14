@@ -1,10 +1,11 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using NBlockchain.Models;
 
 namespace NBlockchain.Interfaces
 {
     public interface IBlockbaseTransactionBuilder
     {
-        TransactionEnvelope Build(KeyPair builderKeys, ICollection<TransactionEnvelope> transactions);
+        Task<Transaction> Build(KeyPair builderKeys, ICollection<Transaction> transactions);
     }
 }

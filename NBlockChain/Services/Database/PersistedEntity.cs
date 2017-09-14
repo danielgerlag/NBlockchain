@@ -13,11 +13,13 @@ namespace NBlockchain.Services.Database
 
         public PersistedEntity()
         {
+            Statistics = new TStats();
         }
 
         public PersistedEntity(TEntity entity)
         {
             Entity = entity;
+            Statistics = new TStats();
         }
     }
 

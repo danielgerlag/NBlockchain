@@ -16,11 +16,12 @@ namespace NBlockchain.MongoDB.Services
     public class MongoBlockRepository : IBlockRepository
     {
         private readonly IMongoDatabase _database;
-        //private readonly AutoResetEvent _cursorEvent = new AutoResetEvent(true);
+        private readonly IAddressEncoder _addressEncoder;
 
-        public MongoBlockRepository(IMongoDatabase database)
+        public MongoBlockRepository(IMongoDatabase database, IAddressEncoder addressEncoder)
         {
             _database = database;
+            _addressEncoder = addressEncoder;
             EnsureIndexes();
         }
 
@@ -31,11 +32,11 @@ namespace NBlockchain.MongoDB.Services
             {
                 foreach (var type in asm.ExportedTypes)
                 {
-                    var attr = type.GetTypeInfo().GetCustomAttribute<TransactionTypeAttribute>();
+                    var attr = type.GetTypeInfo().GetCustomAttribute<InstructionTypeAttribute>();
                     if (attr != null)
                     {
-                        //BsonSerializer.RegisterDiscriminator(type, new BsonString(attr.TypeId));
-                        BsonSerializer.RegisterDiscriminator(type, TypeNameDiscriminator.GetDiscriminator(type));
+                        BsonSerializer.RegisterDiscriminator(type, new BsonString(attr.TypeIdentifier));
+                        //BsonSerializer.RegisterDiscriminator(type, TypeNameDiscriminator.GetDiscriminator(type));
 
                         //hack for dodgy mongo driver
                         IBsonWriter w = new BsonBinaryWriter(new MemoryStream());
@@ -58,45 +59,47 @@ namespace NBlockchain.MongoDB.Services
 
         public async Task AddBlock(Block block)
         {
-            var persisted = new PersistedBlock(block);
+            var persisted = new PersistedBlock(block, _addressEncoder);
             var prevHeader = Blocks
                 .Find(x => x.Header.BlockId == block.Header.PreviousBlock)
                 .Project(x => x.Header)
                 .FirstOrDefault();
-
-            persisted.Statistics.TimeStamp = new DateTime(block.Header.Timestamp);
-
+            
             if (prevHeader != null)
                 persisted.Statistics.BlockTime = Convert.ToInt32(TimeSpan.FromTicks(block.Header.Timestamp - prevHeader.Timestamp).TotalSeconds);
 
             Blocks.InsertOne(persisted);
+
+            await Task.Yield();
         }
 
-        public async Task<bool> HaveBlock(byte[] blockId)
+        public Task<bool> HaveBlock(byte[] blockId)
         {            
             var query = Blocks.Find(x => x.Header.BlockId == blockId);
-            return query.Any();
+            return Task.FromResult(query.Any());
         }
 
-        public async Task<bool> IsEmpty()
+        public Task<bool> IsEmpty()
         {
-            return (Blocks.Count(x => true) == 0);
+            return Task.FromResult(Blocks.Count(x => true) == 0);
         }
 
-        public async Task<BlockHeader> GetNewestBlockHeader()
+        public Task<BlockHeader> GetNewestBlockHeader()
         {
             if (Blocks.Count(x => true) == 0)
-                return null;
+                return Task.FromResult<BlockHeader>(null);
 
             var height = Blocks.AsQueryable().Max(x => x.Header.Height);
             var query = Blocks.AsQueryable().Select(x => x.Header).Where(x => x.Height == height);
-            return query.FirstOrDefault();
+            var result = query.FirstOrDefault();
+            return Task.FromResult(result);
         }
 
-        public async Task<Block> GetNextBlock(byte[] prevBlockId)
+        public Task<Block> GetNextBlock(byte[] prevBlockId)
         {
             var query = Blocks.Find(x => x.Header.PreviousBlock == prevBlockId);
-            return query.FirstOrDefault();
+            var persistedResult = query.FirstOrDefault();
+            return persistedResult == null ? Task.FromResult<Block>(null) : Task.FromResult(persistedResult.ToBlock());
         }
 
         public async Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
@@ -127,8 +130,11 @@ namespace NBlockchain.MongoDB.Services
                 Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.BlockId), new CreateIndexOptions() { Background = true, Unique = true });
                 Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.Height), new CreateIndexOptions() { Background = true });
                 Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Header.PreviousBlock), new CreateIndexOptions() { Background = true });
-                //Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Transactions.Select(y => y.OriginKey)), new CreateIndexOptions() { Background = true, Name = "idx_origkey" });
-                //Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Transactions.Select(y => y.Originator)), new CreateIndexOptions() { Background = true, Name = "idx_origin" });
+
+                //?
+                
+                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(new StringFieldDefinition<PersistedBlock>("Transactions.TransactionId")), new CreateIndexOptions() { Background = true });
+                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(new StringFieldDefinition<PersistedBlock>("Transactions.Instructions.Id")), new CreateIndexOptions() { Background = true });
 
                 _indexesCreated = true;
             }

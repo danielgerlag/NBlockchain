@@ -124,7 +124,7 @@ namespace NBlockchain.Services.Net
             _resetEvent.WaitOne();
             try
             {
-                _client.Client.Shutdown(SocketShutdown.Both);
+                _client?.Client?.Shutdown(SocketShutdown.Both);
             }
             catch (Exception ex)
             {
@@ -144,7 +144,7 @@ namespace NBlockchain.Services.Net
                 {
                     _cancelToken.Cancel();
                     SpinWait.SpinUntil(() => _pollExited);
-                    _client?.GetStream().Dispose();
+                    //_client?.GetStream().Dispose();
                     _client?.Dispose();
                 }
                 catch (Exception ex)

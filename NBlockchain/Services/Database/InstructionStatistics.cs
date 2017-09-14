@@ -4,10 +4,8 @@ using System.Text;
 
 namespace NBlockchain.Services.Database
 {
-    public class BlockStatistics
+    public class InstructionStatistics
     {
-        public int BlockTime { get; set; }
-
-        public DateTime TimeStamp { get; set; }
+        public byte[] PublicKeyHash { get; set; }
     }
 }

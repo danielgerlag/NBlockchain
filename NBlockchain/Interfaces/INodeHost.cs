@@ -5,6 +5,6 @@ namespace NBlockchain.Interfaces
 {
     public interface INodeHost : IBlockReceiver, ITransactionReceiver
     {
-        Task SendTransaction(TransactionEnvelope transaction);
+        Task SendTransaction(Transaction transaction);
     }
 }

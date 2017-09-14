@@ -31,7 +31,7 @@ namespace NBlockchain.Services.Net
         private readonly IEnumerable<IPeerDiscoveryService> _discoveryServices;
         private readonly ILogger _logger;
         private readonly IOwnAddressResolver _ownAddressResolver;
-        private readonly IPendingTransactionList _pendingTransactionList;
+        private readonly IUnconfirmedTransactionCache _unconfirmedTransactionCache;
 
         private readonly ConcurrentQueue<KnownPeer> _peerRoundRobin = new ConcurrentQueue<KnownPeer>();
         
@@ -52,14 +52,14 @@ namespace NBlockchain.Services.Net
 
         public Guid NodeId { get; private set; }
 
-        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IPendingTransactionList pendingTransactionList)
+        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IUnconfirmedTransactionCache unconfirmedTransactionCache)
         {
             _port = port;
             _logger = loggerFactory.CreateLogger<TcpPeerNetwork>();
             _blockRepository = blockRepository;
             _discoveryServices = discoveryServices;
             _ownAddressResolver = ownAddressResolver;
-            _pendingTransactionList = pendingTransactionList;
+            _unconfirmedTransactionCache = unconfirmedTransactionCache;
             NodeId = Guid.NewGuid();            
         }
 
@@ -269,7 +269,7 @@ namespace NBlockchain.Services.Net
 
         private async Task ProcessTransaction(byte[] data, Guid originId)
         {
-            var txn = DeserializeObject<TransactionEnvelope>(data);
+            var txn = DeserializeObject<Transaction>(data);
             var result = await _transactionReciever.RecieveTransaction(txn);
 
             if (result == PeerDataResult.Relay)
@@ -287,7 +287,7 @@ namespace NBlockchain.Services.Net
 
         private void ProcessTxnRequest(PeerConnection peer)
         {
-            var txns = _pendingTransactionList.Get;
+            var txns = _unconfirmedTransactionCache.Get;
 
             foreach (var txn in txns)
             {
@@ -463,7 +463,7 @@ namespace NBlockchain.Services.Net
             }
         }
 
-        public void BroadcastTransaction(TransactionEnvelope transaction)
+        public void BroadcastTransaction(Transaction transaction)
         {
             var data = SerializeObject(transaction);
             

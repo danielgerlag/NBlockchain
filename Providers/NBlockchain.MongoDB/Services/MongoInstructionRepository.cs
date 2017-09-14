@@ -11,18 +11,20 @@ using NBlockchain.Models;
 
 namespace NBlockchain.MongoDB.Services
 {
-    public abstract class MongoTransactionRepository
+    public class MongoInstructionRepository : IInstructionRepository
     {
         protected readonly IMongoDatabase Database;
         protected IMongoCollection<PersistedBlock> Blocks => Database.GetCollection<PersistedBlock>("nbc.blocks");
 
-        protected MongoTransactionRepository(IMongoDatabase database)
+        public MongoInstructionRepository(IMongoDatabase database)
         {
             Database = database;
             EnsureIndexes();
         }
 
-        protected abstract void CreateIndexes();
+        protected virtual void CreateIndexes()
+        {
+        }
         
 
         static bool _indexesCreated = false;
@@ -30,9 +32,15 @@ namespace NBlockchain.MongoDB.Services
         {
             if (!_indexesCreated)
             {
-                
+                CreateIndexes();
                 _indexesCreated = true;
             }
+        }
+
+        public Task<bool> HaveInstruction(byte[] instructionId)
+        {
+            var result = Blocks.AsQueryable().Any(x => x.Transactions.SelectMany(y => y.Instructions).Any(y => y.Id == instructionId));
+            return Task.FromResult(result);
         }
     }
     

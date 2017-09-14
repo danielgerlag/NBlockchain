@@ -7,16 +7,23 @@ using NBlockchain.Interfaces;
 
 namespace NBlockchain.Tests.Scenarios.Common
 {
-    class BaseBuilder : BlockbaseTransactionBuilder<TestTransaction>
+    class BaseBuilder : BlockbaseTransactionBuilder
     {
-        protected BaseBuilder(IAddressEncoder addressEncoder, ISignatureService signatureService) 
-            : base(addressEncoder, signatureService)
+        public BaseBuilder(IAddressEncoder addressEncoder, ISignatureService signatureService, ITransactionBuilder transactionBuilder) 
+            : base(addressEncoder, signatureService, transactionBuilder)
         {
         }
 
-        protected override TestTransaction BuildBaseTransaction(ICollection<TransactionEnvelope> transactions)
+        protected override ICollection<Instruction> BuildInstructions(KeyPair builderKeys, ICollection<Transaction> transactions)
         {
-            return new TestTransaction() { Data = "base" };
+            var instructions = new HashSet<Instruction>();
+            var i1 = new TestInstruction();
+            i1.Data = "test";
+            i1.PublicKey = builderKeys.PublicKey;
+            SignatureService.SignInstruction(i1, builderKeys.PrivateKey);
+            instructions.Add(i1);
+
+            return instructions;
         }
     }
 

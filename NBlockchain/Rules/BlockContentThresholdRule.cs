@@ -2,32 +2,33 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using NBlockchain.Models;
 
 namespace NBlockchain.Rules
 {
     public class BlockContentThresholdRule : IBlockRule
     {
-        private readonly IPendingTransactionList _pendingTransactions;
+        private readonly IUnconfirmedTransactionCache _unconfirmedTransactions;
         private readonly decimal _threshold;
 
         public bool TailRule => true;
 
-        public BlockContentThresholdRule(IPendingTransactionList pendingTransactions, decimal threshold)
+        public BlockContentThresholdRule(IUnconfirmedTransactionCache unconfirmedTransactions, decimal threshold)
         {
-            _pendingTransactions = pendingTransactions;
+            _unconfirmedTransactions = unconfirmedTransactions;
             _threshold = threshold;
         }
         
-        public bool Validate(Block block)
+        public Task<bool> Validate(Block block)
         {
-            var expected = _pendingTransactions.Get;
+            var expected = _unconfirmedTransactions.Get;
             if (expected.Count == 0)
-                return true;
+                return Task.FromResult(true);
             
-            var count = expected.Count(txn => block.Transactions.Any(actual => actual.OriginKey == txn.OriginKey));
+            var count = expected.Count(txn => block.Transactions.Any(actual => actual.TransactionId.SequenceEqual(txn.TransactionId)));
             var ratio = (decimal)count / (decimal)expected.Count;
-            return (ratio >= _threshold);
+            return Task.FromResult(ratio >= _threshold);
         }
         
     }

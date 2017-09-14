@@ -11,18 +11,23 @@ using System.Linq;
 
 namespace NBlockchain.Services.Database
 {
-    public abstract class TransactionRepository
+    public class InstructionRepository : IInstructionRepository
     {
         protected readonly ILogger Logger;
         protected readonly IDataConnection Connection;
 
         protected LiteCollection<PersistedBlock> Blocks => Connection.Database.GetCollection<PersistedBlock>("Blocks");
-        protected LiteCollection<PersistedTransaction> Transactions => Connection.Database.GetCollection<PersistedTransaction>("Txns");
+        protected LiteCollection<PersistedInstruction> Instructions => Connection.Database.GetCollection<PersistedInstruction>("Instructions");
 
-        protected TransactionRepository(ILoggerFactory loggerFactory, IDataConnection connection)
+        public InstructionRepository(ILoggerFactory loggerFactory, IDataConnection connection)
         {
             Connection = connection;
-            Logger = loggerFactory.CreateLogger<DefaultBlockRepository>();
+            Logger = loggerFactory.CreateLogger<InstructionRepository>();
+        }
+
+        public Task<bool> HaveInstruction(byte[] instructionId)
+        {
+            return Task.FromResult(Instructions.Exists(x => x.Entity.InstructionId == instructionId));
         }
     }
 }

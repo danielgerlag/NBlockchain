@@ -13,21 +13,18 @@ namespace NBlockchain.Services
     public class TransactionKeyResolver : ITransactionKeyResolver
     {
         private readonly IHasher _hasher;
+        private readonly IMerkleTreeBuilder _merkleTreeBuilder;
 
-        public TransactionKeyResolver(IHasher hasher)
+        public TransactionKeyResolver(IHasher hasher, IMerkleTreeBuilder merkleTreeBuilder)
         {
             _hasher = hasher;
+            _merkleTreeBuilder = merkleTreeBuilder;
         }
 
-        public byte[] ResolveKey(TransactionEnvelope txn)
+        public async Task<byte[]> ResolveKey(Transaction txn)
         {
-            var txnStr = JsonConvert.SerializeObject(txn.Transaction, Formatting.None);
-
-            var seed = txn.OriginKey.ToByteArray()
-                .Concat(Encoding.Unicode.GetBytes(txn.Originator))
-                .Concat(Encoding.Unicode.GetBytes(txnStr));
-
-            return _hasher.ComputeHash(seed.ToArray());
+            var tree = await _merkleTreeBuilder.BuildTree(txn.Instructions.Select(x => x.InstructionId).ToList());
+            return tree.Value;
         }
     }
 }
