@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using NBlockchain.Models;
 
 namespace NBlockchain.Interfaces
 {
-    public interface ITransactionRule
+    public interface IInstructionRepository
     {
-        int Validate(Transaction transaction, ICollection<Transaction> siblings);
+        Task<bool> HaveInstruction(byte[] instructionId);
     }
 }

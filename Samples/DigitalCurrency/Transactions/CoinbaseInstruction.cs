@@ -5,8 +5,8 @@ using System.Text;
 
 namespace DigitalCurrency.Transactions
 {
-    public abstract class ValueTransaction : BlockTransaction
+    [InstructionType("coinbase-v1")]
+    public class CoinbaseInstruction : ValueInstruction
     {
-        public int Amount { get; set; }
     }
 }

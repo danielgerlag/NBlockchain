@@ -8,19 +8,19 @@ using System.Threading.Tasks;
 
 namespace NBlockchain.Services
 {
-    public class PendingTransactionList : IPendingTransactionList
+    public class UnconfirmedTransactionCache : IUnconfirmedTransactionCache
     {
-        private readonly ICollection<TransactionEnvelope> _list = new List<TransactionEnvelope>();
+        private readonly ICollection<Transaction> _list = new List<Transaction>();
         private readonly AutoResetEvent _evt = new AutoResetEvent(true);
 
-        public ICollection<TransactionEnvelope> Get
+        public ICollection<Transaction> Get
         {
             get
             {
                 _evt.WaitOne();
                 try
                 {
-                    var result = new List<TransactionEnvelope>();
+                    var result = new List<Transaction>();
                     result.AddRange(_list);
                     return result;
                 }
@@ -33,12 +33,12 @@ namespace NBlockchain.Services
 
         public event EventHandler Changed;
 
-        public bool Add(TransactionEnvelope txn)
+        public bool Add(Transaction txn)
         {
             _evt.WaitOne();
             try
             {
-                if (_list.Any(x => x.OriginKey == txn.OriginKey && x.Originator == x.Originator))
+                if (_list.Any(x => txn.TransactionId.SequenceEqual(x.TransactionId)))
                     return false;
 
                 _list.Add(txn);
@@ -51,14 +51,14 @@ namespace NBlockchain.Services
             }
         }
 
-        public void Remove(ICollection<TransactionEnvelope> toRemove)
+        public void Remove(ICollection<Transaction> toRemove)
         {
             _evt.WaitOne();
             try
             {
                 foreach (var item in toRemove)
                 {
-                    var removals = _list.Where(x => x.OriginKey == item.OriginKey && x.Originator == item.Originator).ToList();
+                    var removals = _list.Where(x => item.TransactionId.SequenceEqual(x.TransactionId)).ToList();
                     foreach (var remove in removals)
                         _list.Remove(remove);
                 }

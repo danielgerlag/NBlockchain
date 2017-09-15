@@ -13,5 +13,6 @@ namespace NBlockchain.Interfaces
         Task<Block> GetNextBlock(byte[] prevBlockId);
 
         Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc);
+        
     }
 }

@@ -8,8 +8,8 @@ namespace NBlockchain.Models
     {
         public static byte[] HeadKey = new byte[] { 0x0 };
 
-        public BlockHeader Header { get; set; }        
-        public ICollection<TransactionEnvelope> Transactions { get; set; } = new HashSet<TransactionEnvelope>();
+        public BlockHeader Header { get; set; }
+        public ICollection<Transaction> Transactions { get; set; } = new HashSet<Transaction>();
         public MerkleNode MerkleRootNode { get; set; }
 
         public Block()

@@ -22,7 +22,7 @@ namespace NBlockchain.Services
         private readonly IBlockNotary _blockNotary;
         private readonly ILogger _logger;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
-        private readonly IPendingTransactionList _pendingTransactionList;
+        private readonly IUnconfirmedTransactionCache _unconfirmedTransactionCache;
         private readonly IBlockRepository _blockRepository;
         private readonly IPeerNetwork _peerNetwork;
         private readonly IBlockReceiver _blockReciever;
@@ -36,7 +36,7 @@ namespace NBlockchain.Services
         private CancellationTokenSource _blockCancelToken;
                 
 
-        public BlockMiner(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IPendingTransactionList pendingTransactionList, IBlockRepository blockRepository, IBlockReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
+        public BlockMiner(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IUnconfirmedTransactionCache unconfirmedTransactionCache, IBlockRepository blockRepository, IBlockReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
             _peerNetwork= peerNetwork;
@@ -48,8 +48,8 @@ namespace NBlockchain.Services
             _merkleTreeBuilder = merkleTreeBuilder;
             _logger = loggerFactory.CreateLogger<BlockMiner>();
             _blockRepository = blockRepository;
-            _pendingTransactionList = pendingTransactionList;
-            _pendingTransactionList.Changed += PendingTransactionList_Changed;
+            _unconfirmedTransactionCache = unconfirmedTransactionCache;
+            _unconfirmedTransactionCache.Changed += UnconfirmedTransactionCacheChanged;
         }
 
 
@@ -96,7 +96,7 @@ namespace NBlockchain.Services
             }
         }
 
-        private void PendingTransactionList_Changed(object sender, EventArgs e)
+        private void UnconfirmedTransactionCacheChanged(object sender, EventArgs e)
         {
             _resetEvent.WaitOne();
             try
@@ -114,10 +114,9 @@ namespace NBlockchain.Services
 
         private async Task<Block> AssembleBlock(byte[] prevBlock, uint height, uint difficulty, CancellationToken cancellationToken)
         {
-            var targetTxns = _pendingTransactionList.Get;
-            targetTxns.Add(_blockbaseBuilder.Build(_builderKeys, targetTxns));
-            var hashDict = HashTransactions(targetTxns, cancellationToken);
-            var merkleRoot = await _merkleTreeBuilder.BuildTree(hashDict.Keys);
+            var targetTxns = _unconfirmedTransactionCache.Get;
+            targetTxns.Add(await _blockbaseBuilder.Build(_builderKeys, targetTxns));
+            var merkleRoot = await _merkleTreeBuilder.BuildTree(targetTxns.Select(x => x.TransactionId).ToList());
 
             if (cancellationToken.IsCancellationRequested)
             {
@@ -153,21 +152,5 @@ namespace NBlockchain.Services
 
             return result;
         }
-                
-        
-                
-        private IDictionary<byte[], TransactionEnvelope> HashTransactions(ICollection<TransactionEnvelope> transactions, CancellationToken cancellationToken)
-        {
-            var result = new ConcurrentDictionary<byte[], TransactionEnvelope>();
-                        
-            Parallel.ForEach(transactions, txn =>
-            {
-                var key = _transactionKeyResolver.ResolveKey(txn);
-                result[key] = txn;
-            });
-
-            return result;
-        }
-
     }
 }

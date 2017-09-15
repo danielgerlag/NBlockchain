@@ -59,7 +59,7 @@ namespace NBlockchain.Services.Net
             _blockReciever.RecieveTail(block);
         };
 
-        public Action<Guid, TransactionEnvelope> ReceiveTransaction => (peer, txn) =>
+        public Action<Guid, Transaction> ReceiveTransaction => (peer, txn) =>
         {
             _transactionReciever.RecieveTransaction(txn);
         };
@@ -82,7 +82,7 @@ namespace NBlockchain.Services.Net
             });
         }
         
-        public void BroadcastTransaction(TransactionEnvelope transaction)
+        public void BroadcastTransaction(Transaction transaction)
         {
             Parallel.ForEach(Peers.Where(x => x.NodeId != NodeId), peer =>
             {

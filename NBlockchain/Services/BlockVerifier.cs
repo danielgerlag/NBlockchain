@@ -14,30 +14,27 @@ namespace NBlockchain.Services
         private readonly INetworkParameters _parameters;
         private readonly IEnumerable<ITransactionRule> _txnRules;
         private readonly IEnumerable<IBlockRule> _blockRules;
-        private readonly IEnumerable<ValidTransactionType> _validTxnTypes;
-        private readonly IAddressEncoder _addressEncoder;
+        private readonly IInstructionRepository _instructionRepository;
         private readonly ISignatureService _signatureService;
         private readonly IHashTester _hashTester;
         private readonly IHasher _hasher;
         private readonly IMerkleTreeBuilder _merkleTreeBuilder;
         private readonly ITransactionKeyResolver _transactionKeyResolver;
-        private readonly IEqualityComparer<byte[]> _byteArrayEqualityComparer = new ByteArrayEqualityComparer();
 
-        public BlockVerifier(INetworkParameters parameters, IAddressEncoder addressEncoder, ISignatureService signatureService, IEnumerable<ITransactionRule> txnRules, IEnumerable<IBlockRule> blockRules, IEnumerable<ValidTransactionType> validTxnTypes, IMerkleTreeBuilder merkleTreeBuilder, ITransactionKeyResolver transactionKeyResolver, IHashTester hashTester, IHasher hasher)
+        public BlockVerifier(INetworkParameters parameters, ISignatureService signatureService, IEnumerable<ITransactionRule> txnRules, IEnumerable<IBlockRule> blockRules, IEnumerable<ValidInstructionType> validTxnTypes, IMerkleTreeBuilder merkleTreeBuilder, ITransactionKeyResolver transactionKeyResolver, IHashTester hashTester, IHasher hasher, IInstructionRepository instructionRepository)
         {
             _parameters = parameters;
-            _addressEncoder = addressEncoder;
             _signatureService = signatureService;
             _txnRules = txnRules;
             _blockRules = blockRules;
-            _validTxnTypes = validTxnTypes;
             _merkleTreeBuilder = merkleTreeBuilder;
             _transactionKeyResolver = transactionKeyResolver;
             _hashTester = hashTester;
             _hasher = hasher;
+            _instructionRepository = instructionRepository;
         }
 
-        public bool Verify(Block block)
+        public async Task<bool> Verify(Block block)
         {
             if (!_hashTester.TestHash(block.Header.BlockId, block.Header.Difficulty))
                 return false;
@@ -47,9 +44,8 @@ namespace NBlockchain.Services
 
             if (!hash.SequenceEqual(block.Header.BlockId))
                 return false;
-
-            var hashDict = HashTransactions(block.Transactions);
-            var merkleRoot = _merkleTreeBuilder.BuildTree(hashDict.Keys).Result;
+            
+            var merkleRoot = await _merkleTreeBuilder.BuildTree(block.Transactions.Select(x => x.TransactionId).ToList());
 
             if (!merkleRoot.Value.SequenceEqual(block.Header.MerkelRoot))
                 return false;
@@ -57,53 +53,47 @@ namespace NBlockchain.Services
             foreach (var txn in block.Transactions)
             {
                 var siblings = block.Transactions.Where(x => x != txn).ToList();
-                if (VerifyTransaction(txn, siblings) != 0)
+                if (await VerifyTransaction(txn, siblings) != 0)
                     return false;
             }
 
             return true;
         }
 
-        public bool VerifyBlockRules(Block block, bool tail)
+        public async Task<bool> VerifyBlockRules(Block block, bool tail)
         {
             foreach (var rule in _blockRules.Where(x => x.TailRule == tail || tail))
             {
-                if (!rule.Validate(block))
+                if (! await rule.Validate(block))
                     return false;
             }
             return true;
         }
 
-        public int VerifyTransaction(TransactionEnvelope transaction, ICollection<TransactionEnvelope> siblings)
+        public async Task<int> VerifyTransaction(Transaction transaction, ICollection<Transaction> siblings)
         {
-            var result = 0;
+            foreach (var instruction in transaction.Instructions)
+                if (!await VerifyInstruction(instruction, siblings))
+                    return -1;
 
-            if (!_addressEncoder.IsValidAddress(transaction.Originator))
-                return -1;
+            var expectedId = await _transactionKeyResolver.ResolveKey(transaction);
 
-            if (_validTxnTypes.All(x => x.TransactionType != transaction.TransactionType))
+            if (!expectedId.SequenceEqual(transaction.TransactionId))
                 return -2;
 
-            if (!_signatureService.VerifyTransaction(transaction))
-                return -3;
-
-            foreach (var validator in _txnRules.Where(v => v.TransactionType == transaction.TransactionType))
-                result = result & validator.Validate(transaction, siblings);
-
-            return result;
+            return _txnRules.Aggregate(0, (current, validator) => current & validator.Validate(transaction, siblings));
         }
-        
-        private IDictionary<byte[], TransactionEnvelope> HashTransactions(ICollection<TransactionEnvelope> transactions)
+
+
+        private async Task<bool> VerifyInstruction(Instruction instruction, ICollection<Transaction> siblings)
         {
-            var result = new ConcurrentDictionary<byte[], TransactionEnvelope>();
+            if (siblings.Any(x => x.Instructions.Any(y => y.InstructionId.SequenceEqual(instruction.InstructionId))))
+                return false;
 
-            Parallel.ForEach(transactions, txn =>
-            {
-                var key = _transactionKeyResolver.ResolveKey(txn);
-                result[key] = txn;
-            });
+            if (!_signatureService.VerifyInstruction(instruction))
+                return false;
 
-            return result;
+            return (!await _instructionRepository.HaveInstruction(instruction.InstructionId));
         }
     }
 }

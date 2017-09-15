@@ -4,8 +4,8 @@ using System.Text;
 
 namespace DigitalCurrency.Repositories
 {
-    public interface ICustomTransactionRepository
+    public interface ICustomInstructionRepository
     {
-        decimal GetAccountBalance(string account);
+        decimal GetAccountBalance(string address);
     }
 }

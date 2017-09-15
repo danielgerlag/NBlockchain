@@ -12,7 +12,7 @@ namespace NBlockchain.Interfaces
 
         void BroadcastTail(Block block);
 
-        void BroadcastTransaction(TransactionEnvelope transaction);
+        void BroadcastTransaction(Transaction transaction);
 
         void RequestNextBlock(byte[] blockId);
         

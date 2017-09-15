@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using MongoDB.Driver;
+using NBlockchain.Interfaces;
 using NBlockchain.MongoDB;
 using NBlockchain.MongoDB.Services;
 using NBlockchain.Models;
@@ -19,6 +20,7 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             options.UseBlockRepository<MongoBlockRepository>();
+            options.Services.AddTransient<IInstructionRepository, MongoInstructionRepository>();
             options.AddPeerDiscovery<MongoPeerDirectory>();
 
             return new BlockchainMongoOptions(options, mongoUrl, databaseName);
@@ -38,8 +40,8 @@ namespace Microsoft.Extensions.DependencyInjection
             _databaseName = databaseName;
         }
 
-        public BlockchainMongoOptions UseTransactionRepository<TService, TImplementation>()
-            where TImplementation : MongoTransactionRepository, TService
+        public BlockchainMongoOptions UseInstructionRepository<TService, TImplementation>()
+            where TImplementation : MongoInstructionRepository, TService
             where TService : class
         {
             _options.Services.AddTransient<TService, TImplementation>();

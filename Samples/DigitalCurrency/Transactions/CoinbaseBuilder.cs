@@ -7,19 +7,24 @@ using System.Text;
 
 namespace DigitalCurrency.Transactions
 {
-    public class CoinbaseBuilder : BlockbaseTransactionBuilder<CoinbaseTransaction>
+    public class CoinbaseBuilder : BlockbaseTransactionBuilder
     {
-        public CoinbaseBuilder(IAddressEncoder addressEncoder, ISignatureService signatureService) 
-            : base(addressEncoder, signatureService)
+        public CoinbaseBuilder(IAddressEncoder addressEncoder, ISignatureService signatureService, ITransactionBuilder transactionBuilder) 
+            : base(addressEncoder, signatureService, transactionBuilder)
         {
         }
 
-        protected override CoinbaseTransaction BuildBaseTransaction(ICollection<TransactionEnvelope> transactions)
+        protected override ICollection<Instruction> BuildInstructions(KeyPair builderKeys, ICollection<Transaction> transactions)
         {
-            return new CoinbaseTransaction()
-            {
-                Amount = -50
-            };
+            var result = new List<Instruction>();
+            var instruction = new CoinbaseInstruction();
+            instruction.Amount = -50;
+            instruction.PublicKey = builderKeys.PublicKey;
+
+            SignatureService.SignInstruction(instruction, builderKeys.PrivateKey);
+            result.Add(instruction);
+
+            return result;
         }
     }
 }

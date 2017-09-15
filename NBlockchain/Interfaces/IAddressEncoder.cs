@@ -3,7 +3,8 @@
     public interface IAddressEncoder
     {
         string EncodeAddress(byte[] publicKey, byte type);
-        byte[] ExtractPublicKey(string address);
+        byte[] ExtractPublicKeyHash(string address);
+        byte[] HashPublicKey(byte[] publicKey);
         bool IsValidAddress(string address);
     }
 }

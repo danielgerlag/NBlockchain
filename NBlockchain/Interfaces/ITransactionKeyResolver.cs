@@ -1,9 +1,10 @@
-﻿using NBlockchain.Models;
+﻿using System.Threading.Tasks;
+using NBlockchain.Models;
 
 namespace NBlockchain.Interfaces
 {
     public interface ITransactionKeyResolver
     {
-        byte[] ResolveKey(TransactionEnvelope txn);
+        Task<byte[]> ResolveKey(Transaction txn);
     }
 }
