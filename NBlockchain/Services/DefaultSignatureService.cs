@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using NBlockchain.Interfaces;
 using NBlockchain.Models;
@@ -12,83 +12,67 @@ namespace NBlockchain.Services
     public class DefaultSignatureService : ISignatureService
     {
         private readonly IAddressEncoder _addressEncoder;
-        private readonly ITransactionKeyResolver _transactionKeyResolver;
-        private readonly ECCurve _curve = ECCurve.NamedCurves.nistP256;
-        private readonly HashAlgorithmName _hashAlgorithm = HashAlgorithmName.SHA512;
+        private readonly IAsymetricCryptographyService _asymetricCryptography;
 
-        public DefaultSignatureService(IAddressEncoder addressEncoder, ITransactionKeyResolver transactionKeyResolver)
+        public DefaultSignatureService(IAddressEncoder addressEncoder, IAsymetricCryptographyService asymetricCryptography)
         {
             _addressEncoder = addressEncoder;
-            _transactionKeyResolver = transactionKeyResolver;
+            _asymetricCryptography = asymetricCryptography;
         }
 
         public KeyPair GenerateKeyPair()
         {
-            using (var dsa = ECDsa.Create(_curve))
+            var privateKey = _asymetricCryptography.GeneratePrivateKey();
+            var publicKey = _asymetricCryptography.GetPublicKey(privateKey);
+
+            return new KeyPair()
             {
-                var parameters = dsa.ExportParameters(true);
-                var publicKey = parameters.Q.X.Concat(parameters.Q.Y).ToArray();
-                return new KeyPair()
-                {
-                    PrivateKey = parameters.D.Concat(publicKey).ToArray(),
-                    PublicKey = publicKey
-                };
-            }
+                PrivateKey = privateKey,
+                PublicKey = publicKey
+            };
+        }
+
+        public KeyPair GetKeyPairFromPhrase(string phrase)
+        {
+            var privateKey = _asymetricCryptography.BuildPrivateKeyFromPhrase(phrase);
+            var publicKey = _asymetricCryptography.GetPublicKey(privateKey);
+
+            return new KeyPair()
+            {
+                PrivateKey = privateKey,
+                PublicKey = publicKey
+            };
         }
 
         public void SignInstruction(Instruction instruction, byte[] privateKey)
         {
-            using (var dsa = ECDsa.Create(_curve))
-            {                
-                dsa.ImportParameters(new ECParameters()
-                {
-                    Curve = _curve,
-                    D = privateKey.Take(privateKey.Length / 3).ToArray(),
-                    Q = new ECPoint()
-                    {
-                        X = privateKey.Skip(privateKey.Length / 3).Take(privateKey.Length / 3).ToArray(),
-                        Y = privateKey.Skip((privateKey.Length / 3) * 2).Take(privateKey.Length / 3).ToArray()
-                    }
-                });
-                instruction.OriginKey = GenerateOriginKey();
-                instruction.InstructionId = ResolveInstructionId(instruction);
-                var data = instruction.ExtractSignableElements();
-
-                instruction.Signature = dsa.SignData(data, _hashAlgorithm);
-            }
+            instruction.OriginKey = GenerateOriginKey();
+            instruction.InstructionId = ResolveInstructionId(instruction);
+            instruction.Signature = _asymetricCryptography.Sign(instruction.InstructionId, privateKey);
         }
 
         public bool VerifyInstruction(Instruction instruction)
         {
             if (instruction.Signature == null)
                 return false;
-            
-            using (var dsa = ECDsa.Create(_curve))
-            {
-                dsa.ImportParameters(new ECParameters()
-                {
-                    Curve = _curve,                    
-                    Q = new ECPoint()
-                    {
-                        X = instruction.PublicKey.Take(instruction.PublicKey.Length / 2).ToArray(),
-                        Y = instruction.PublicKey.Skip(instruction.PublicKey.Length / 2).Take(instruction.PublicKey.Length / 2).ToArray()
-                    }
-                });
 
-                if (!instruction.InstructionId.SequenceEqual(ResolveInstructionId(instruction)))
-                    return false;
+            if (!instruction.InstructionId.SequenceEqual(ResolveInstructionId(instruction)))
+                return false;
 
-                var data = instruction.ExtractSignableElements();
-
-                return dsa.VerifyData(data, instruction.Signature, _hashAlgorithm);
-            }
+            return _asymetricCryptography.Verify(instruction.InstructionId, instruction.Signature, instruction.PublicKey);
         }
         
         private static byte[] ResolveInstructionId(Instruction instruction)
         {
             using (var h = SHA256.Create())
             {
-                return h.ComputeHash(instruction.OriginKey.Concat(instruction.PublicKey).ToArray());
+                var items = instruction.ExtractSignableElements();
+                items.Add(instruction.OriginKey);
+                items.Add(instruction.PublicKey);
+
+                var data = items.SelectMany(x => x).ToArray();
+
+                return h.ComputeHash(data);
             }
         }
 

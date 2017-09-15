@@ -33,9 +33,9 @@ namespace DigitalCurrency.Repositories.Mongo
             
             var outQry = Blocks.Aggregate()
                 .Unwind(x => x.Transactions)
-                .Unwind<PersistedInstruction>(new StringFieldDefinition<BsonDocument>("Instructions"))
+                .Unwind<PersistedInstruction>(new StringFieldDefinition<BsonDocument>("Transactions.Instructions"))
                 .Match(new BsonDocument("Transactions.Instructions.Statistics.PublicKeyHash", publicKeyHash))
-                .Group(new BsonDocument { { "_id", BsonNull.Value }, { "sum", new BsonDocument("$sum", "$Transactions.$Instructions.Entity.Amount") } })
+                .Group(new BsonDocument { { "_id", BsonNull.Value }, { "sum", new BsonDocument("$sum", "$Transactions.Instructions.Entity.Amount") } })
                 .SingleOrDefault();
 
             if (outQry != null)
@@ -46,9 +46,9 @@ namespace DigitalCurrency.Repositories.Mongo
 
             var inQry = Blocks.Aggregate()
                 .Unwind(x => x.Transactions)
-                .Unwind<PersistedInstruction>(new StringFieldDefinition<BsonDocument>("Instructions"))
+                .Unwind<PersistedInstruction>(new StringFieldDefinition<BsonDocument>("Transactions.Instructions"))
                 .Match(new BsonDocument("Transactions.Instructions.Entity.Destination", publicKeyHash))
-                .Group(new BsonDocument { { "_id", BsonNull.Value }, { "sum", new BsonDocument("$sum", "$Transactions.$Instructions.Entity.Amount") } })
+                .Group(new BsonDocument { { "_id", BsonNull.Value }, { "sum", new BsonDocument("$sum", "$Transactions.Instructions.Entity.Amount") } })
                 .SingleOrDefault();
 
             if (inQry != null)

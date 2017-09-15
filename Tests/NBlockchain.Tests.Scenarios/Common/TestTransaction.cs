@@ -9,5 +9,10 @@ namespace NBlockchain.Tests.Scenarios.Common
     public class TestInstruction : Instruction
     {
         public string Data { get; set; }
+
+        public override ICollection<byte[]> ExtractSignableElements()
+        {
+            return new List<byte[]>() { Encoding.UTF8.GetBytes(Data) };
+        }
     }
 }

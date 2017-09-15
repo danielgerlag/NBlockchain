@@ -39,7 +39,11 @@ namespace NBlockchain.MongoDB.Services
 
         public Task<bool> HaveInstruction(byte[] instructionId)
         {
-            var result = Blocks.AsQueryable().Any(x => x.Transactions.SelectMany(y => y.Instructions).Any(y => y.Id == instructionId));
+            var filter = new FilterDefinitionBuilder<PersistedBlock>()
+                .Eq(new StringFieldDefinition<PersistedBlock, byte[]>("Transactions.Instructions.Id"), instructionId);
+
+            var result = Blocks.Find(filter).Any();
+                
             return Task.FromResult(result);
         }
     }

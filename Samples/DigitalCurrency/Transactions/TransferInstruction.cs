@@ -11,5 +11,12 @@ namespace DigitalCurrency.Transactions
         public string Message { get; set; }
 
         public byte[] Destination { get; set; }
+
+        public override ICollection<byte[]> ExtractSignableElements()
+        {
+            var result = base.ExtractSignableElements();
+            result.Add(Destination);
+            return result;
+        }
     }
 }

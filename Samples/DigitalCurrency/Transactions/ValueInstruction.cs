@@ -8,5 +8,10 @@ namespace DigitalCurrency.Transactions
     public abstract class ValueInstruction : Instruction
     {
         public int Amount { get; set; }
+
+        public override ICollection<byte[]> ExtractSignableElements()
+        {
+            return new List<byte[]>() { BitConverter.GetBytes(Amount) };
+        }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace NBlockchain.Models
 {
@@ -14,11 +16,7 @@ namespace NBlockchain.Models
         public byte[] PublicKey { get; set; }
 
         public byte[] Signature { get; set; }
-
-
-        public virtual byte[] ExtractSignableElements()
-        {
-            return InstructionId;
-        }
+        
+        public abstract ICollection<byte[]> ExtractSignableElements();
     }
 }

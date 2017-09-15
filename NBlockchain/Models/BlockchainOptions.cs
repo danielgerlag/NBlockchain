@@ -145,6 +145,9 @@ namespace NBlockchain.Models
             });
 
             AddDefault<IHasher, SHA256Hasher>(ServiceLifetime.Transient);
+
+            AddDefault<IAsymetricCryptographyService, AsymetricCryptographyService>(ServiceLifetime.Transient);
+
             AddDefault<ITransactionKeyResolver, TransactionKeyResolver>(ServiceLifetime.Transient);
             AddDefault<ISignatureService, DefaultSignatureService>(ServiceLifetime.Transient);
             AddDefault<IMerkleTreeBuilder, MerkleTreeBuilder>(ServiceLifetime.Transient);
