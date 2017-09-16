@@ -75,12 +75,15 @@ namespace NBlockchain.MongoDB.Services
             await Task.Yield();
         }
 
-        public Task<bool> HaveBlock(byte[] blockId)
+        public Task<bool> HaveBlockMainChain(byte[] blockId)
         {
             var result = MainChain.Find(x => x.Header.BlockId == blockId).Any();
-            if (!result)
-                result = ForkChain.Find(x => x.Header.BlockId == blockId).Any();
+            return Task.FromResult(result);
+        }
 
+        public Task<bool> HaveBlockForkChain(byte[] blockId)
+        {
+            var result = ForkChain.Find(x => x.Header.BlockId == blockId).Any();
             return Task.FromResult(result);
         }
 

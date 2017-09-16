@@ -55,7 +55,7 @@ namespace NBlockchain.Services
             {
                 _logger.LogInformation($"Recv block {block.Header.Height} {BitConverter.ToString(block.Header.BlockId)} {tip}");
 
-                if (await _blockRepository.HaveBlock(block.Header.BlockId))
+                if (await _blockRepository.HaveBlockMainChain(block.Header.BlockId))
                 {
                     _logger.LogInformation("already have block");
                     return PeerDataResult.Ignore;
@@ -148,8 +148,11 @@ namespace NBlockchain.Services
                 }
                 else
                 {
-                    _logger.LogInformation($"Adding detached block");
-                    await _blockRepository.AddDetachedBlock(block);
+                    if (!await _blockRepository.HaveBlockForkChain(block.Header.BlockId))
+                    {
+                        _logger.LogInformation($"Adding detached block");
+                        await _blockRepository.AddDetachedBlock(block);
+                    }
                     if (rebaseChain)
                     {
                         _logger.LogInformation($"Searching for divergent block");

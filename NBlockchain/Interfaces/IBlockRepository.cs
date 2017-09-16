@@ -8,7 +8,8 @@ namespace NBlockchain.Interfaces
     public interface IBlockRepository
     {
         Task AddBlock(Block block);
-        Task<bool> HaveBlock(byte[] blockId);
+        Task<bool> HaveBlockMainChain(byte[] blockId);
+        Task<bool> HaveBlockForkChain(byte[] blockId);
         Task<bool> IsEmpty();
         Task<BlockHeader> GetNewestBlockHeader();
         Task<Block> GetNextBlock(byte[] prevBlockId);

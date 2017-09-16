@@ -64,13 +64,9 @@ namespace NBlockchain.Services.Database
             return Task.CompletedTask;
         }
 
-        public Task<bool> HaveBlock(byte[] blockId)
+        public Task<bool> HaveBlockMainChain(byte[] blockId)
         {            
             var result = MainChain.Exists(x => x.Entity.Header.BlockId == blockId);
-
-            if (!result)
-                result = ForkChain.Exists(x => x.Entity.Header.BlockId == blockId);
-
             return Task.FromResult(result);
         }
 
@@ -159,6 +155,11 @@ namespace NBlockchain.Services.Database
         }
 
         public Task<ICollection<Block>> GetFork(byte[] forkTipBlockId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> HaveBlockForkChain(byte[] blockId)
         {
             throw new NotImplementedException();
         }
