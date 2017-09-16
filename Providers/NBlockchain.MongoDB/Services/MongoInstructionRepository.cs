@@ -14,7 +14,7 @@ namespace NBlockchain.MongoDB.Services
     public class MongoInstructionRepository : IInstructionRepository
     {
         protected readonly IMongoDatabase Database;
-        protected IMongoCollection<PersistedBlock> Blocks => Database.GetCollection<PersistedBlock>("nbc.blocks");
+        protected IMongoCollection<PersistedBlock> MainChain => Database.GetCollection<PersistedBlock>("MainChain");
 
         public MongoInstructionRepository(IMongoDatabase database)
         {
@@ -42,7 +42,7 @@ namespace NBlockchain.MongoDB.Services
             var filter = new FilterDefinitionBuilder<PersistedBlock>()
                 .Eq(new StringFieldDefinition<PersistedBlock, byte[]>("Transactions.Instructions.Id"), instructionId);
 
-            var result = Blocks.Find(filter).Any();
+            var result = MainChain.Find(filter).Any();
                 
             return Task.FromResult(result);
         }

@@ -49,14 +49,18 @@ namespace NBlockchain.Services
 
             if (!merkleRoot.Value.SequenceEqual(block.Header.MerkelRoot))
                 return false;
+            
+            return true;
+        }
 
+        public async Task<bool> VerifyTransactions(Block block)
+        {
             foreach (var txn in block.Transactions)
             {
                 var siblings = block.Transactions.Where(x => x != txn).ToList();
                 if (await VerifyTransaction(txn, siblings) != 0)
                     return false;
             }
-
             return true;
         }
 

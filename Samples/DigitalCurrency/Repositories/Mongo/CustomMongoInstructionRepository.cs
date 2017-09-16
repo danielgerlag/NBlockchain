@@ -31,7 +31,7 @@ namespace DigitalCurrency.Repositories.Mongo
             var totalOut = 0;
             var totalIn = 0;
             
-            var outQry = Blocks.Aggregate()
+            var outQry = MainChain.Aggregate()
                 .Unwind(x => x.Transactions)
                 .Unwind<PersistedInstruction>(new StringFieldDefinition<BsonDocument>("Transactions.Instructions"))
                 .Match(new BsonDocument("Transactions.Instructions.Statistics.PublicKeyHash", publicKeyHash))
@@ -44,7 +44,7 @@ namespace DigitalCurrency.Repositories.Mongo
                     totalOut = bOut.AsInt32;
             }
 
-            var inQry = Blocks.Aggregate()
+            var inQry = MainChain.Aggregate()
                 .Unwind(x => x.Transactions)
                 .Unwind<PersistedInstruction>(new StringFieldDefinition<BsonDocument>("Transactions.Instructions"))
                 .Match(new BsonDocument("Transactions.Instructions.Entity.Destination", publicKeyHash))

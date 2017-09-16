@@ -10,6 +10,7 @@ using NBlockchain.MongoDB.Models;
 using NBlockchain.Interfaces;
 using NBlockchain.Models;
 using System.IO;
+using System.Collections.Generic;
 
 namespace NBlockchain.MongoDB.Services
 {
@@ -55,12 +56,13 @@ namespace NBlockchain.MongoDB.Services
             //BsonSerializer.RegisterDiscriminator(t, t.FullName));
         }
 
-        private IMongoCollection<PersistedBlock> Blocks => _database.GetCollection<PersistedBlock>("nbc.blocks");
+        private IMongoCollection<PersistedBlock> MainChain => _database.GetCollection<PersistedBlock>("MainChain");
+        private IMongoCollection<PersistedBlock> ForkChain => _database.GetCollection<PersistedBlock>("ForkChain");
 
         public async Task AddBlock(Block block)
         {
             var persisted = new PersistedBlock(block, _addressEncoder);
-            var prevHeader = Blocks
+            var prevHeader = MainChain
                 .Find(x => x.Header.BlockId == block.Header.PreviousBlock)
                 .Project(x => x.Header)
                 .FirstOrDefault();
@@ -68,36 +70,39 @@ namespace NBlockchain.MongoDB.Services
             if (prevHeader != null)
                 persisted.Statistics.BlockTime = Convert.ToInt32(TimeSpan.FromTicks(block.Header.Timestamp - prevHeader.Timestamp).TotalSeconds);
 
-            Blocks.InsertOne(persisted);
+            MainChain.InsertOne(persisted);
 
             await Task.Yield();
         }
 
         public Task<bool> HaveBlock(byte[] blockId)
-        {            
-            var query = Blocks.Find(x => x.Header.BlockId == blockId);
-            return Task.FromResult(query.Any());
+        {
+            var result = MainChain.Find(x => x.Header.BlockId == blockId).Any();
+            if (!result)
+                result = ForkChain.Find(x => x.Header.BlockId == blockId).Any();
+
+            return Task.FromResult(result);
         }
 
         public Task<bool> IsEmpty()
         {
-            return Task.FromResult(Blocks.Count(x => true) == 0);
+            return Task.FromResult(MainChain.Count(x => true) == 0);
         }
 
         public Task<BlockHeader> GetNewestBlockHeader()
         {
-            if (Blocks.Count(x => true) == 0)
+            if (MainChain.Count(x => true) == 0)
                 return Task.FromResult<BlockHeader>(null);
 
-            var height = Blocks.AsQueryable().Max(x => x.Header.Height);
-            var query = Blocks.AsQueryable().Select(x => x.Header).Where(x => x.Height == height);
+            var height = MainChain.AsQueryable().Max(x => x.Header.Height);
+            var query = MainChain.AsQueryable().Select(x => x.Header).Where(x => x.Height == height);
             var result = query.FirstOrDefault();
             return Task.FromResult(result);
         }
 
         public Task<Block> GetNextBlock(byte[] prevBlockId)
         {
-            var query = Blocks.Find(x => x.Header.PreviousBlock == prevBlockId);
+            var query = MainChain.Find(x => x.Header.PreviousBlock == prevBlockId);
             var persistedResult = query.FirstOrDefault();
             return persistedResult == null ? Task.FromResult<Block>(null) : Task.FromResult(persistedResult.ToBlock());
         }
@@ -107,7 +112,7 @@ namespace NBlockchain.MongoDB.Services
             var startTicks = startUtc.Ticks;
             var endTicks = endUtc.Ticks;
 
-            var avgQuery = Blocks.Aggregate()
+            var avgQuery = MainChain.Aggregate()
                 .Match(x => x.Header.Timestamp > startTicks && x.Header.Timestamp < endTicks && x.Header.Height > 1)
                 .Group(new BsonDocument { { "_id", "$item" }, { "avg", new BsonDocument("$avg", "$Statistics.BlockTime") } })
                 .SingleOrDefault();
@@ -120,6 +125,111 @@ namespace NBlockchain.MongoDB.Services
 
             return 0;
         }
+        
+        public Task<BlockHeader> GetBlockHeader(byte[] blockId)
+        {
+            if (MainChain.Count(x => true) == 0)
+                return Task.FromResult<BlockHeader>(null);
+                        
+            var result = MainChain.AsQueryable().Select(x => x.Header).Where(x => x.BlockId == blockId).FirstOrDefault();
+
+            if (result == null)
+                result = ForkChain.AsQueryable().Select(x => x.Header).Where(x => x.BlockId == blockId).FirstOrDefault();
+
+            return Task.FromResult(result);
+        }
+
+        public Task<Block> GetBlock(byte[] blockId)
+        {
+            var persistedResult = MainChain.Find(x => x.Header.BlockId == blockId).FirstOrDefault();
+            
+            if (persistedResult == null)
+                persistedResult = ForkChain.Find(x => x.Header.BlockId == blockId).FirstOrDefault();
+
+            return persistedResult == null ? Task.FromResult<Block>(null) : Task.FromResult(persistedResult.ToBlock());
+        }
+
+        public Task<BlockHeader> GetMainChainHeader(uint height)
+        {
+            if (MainChain.Count(x => true) == 0)
+                return Task.FromResult<BlockHeader>(null);
+
+            var query = MainChain.AsQueryable().Select(x => x.Header).Where(x => x.Height == height);
+            var result = query.FirstOrDefault();
+            return Task.FromResult(result);
+        }
+
+        public async Task AddDetachedBlock(Block block)
+        {
+            var persisted = new PersistedBlock(block, _addressEncoder);
+            ForkChain.InsertOne(persisted);
+            await Task.Yield();
+        }
+
+        public Task<BlockHeader> GetForkHeader(byte[] forkBlockId)
+        {
+            var forktip = ForkChain.AsQueryable().Select(x => x.Header).Where(x => x.BlockId == forkBlockId).FirstOrDefault();
+            return Task.FromResult(forktip);
+        }
+
+        public async Task<BlockHeader> GetDivergentHeader(byte[] forkTipBlockId)
+        {
+            var forkHeader = await GetForkHeader(forkTipBlockId);
+            if (forkHeader == null)
+                return null;
+
+            while (!forkHeader.PreviousBlock.SequenceEqual(Block.HeadKey))
+            {
+                var mainParent = MainChain.AsQueryable().Select(x => x.Header).Where(x => x.BlockId == forkHeader.PreviousBlock).FirstOrDefault();
+                if (mainParent != null)
+                    return mainParent;
+
+                forkHeader = await GetForkHeader(forkHeader.PreviousBlock);
+                if (forkHeader == null)
+                    return null;
+            }
+            return null;
+        }
+
+        public async Task RewindChain(byte[] blockId)
+        {
+            var divergent = MainChain.AsQueryable().FirstOrDefault(x => x.Header.BlockId == blockId);
+            if (divergent == null)
+                return;
+
+            var archiveFork = MainChain.AsQueryable()
+                .Where(x => x.Header.Height > divergent.Header.Height)
+                .ToList()
+                .Select(x => x.ToBlock());
+
+            foreach (var block in archiveFork)
+                await AddDetachedBlock(block);
+
+            MainChain.DeleteMany(x => x.Header.Height > divergent.Header.Height);
+        }
+
+        public async Task<ICollection<Block>> GetFork(byte[] forkTipBlockId)
+        {
+            var result = new List<Block>();
+
+            var forkBlock = ForkChain.AsQueryable().FirstOrDefault(x => x.Header.BlockId == forkTipBlockId);
+            if (forkBlock == null)
+                return result;
+
+            while (!forkBlock.Header.PreviousBlock.SequenceEqual(Block.HeadKey))
+            {
+                result.Add(forkBlock.ToBlock());
+                var mainParent = MainChain.AsQueryable().Select(x => x.Header).Where(x => x.BlockId == forkBlock.Header.PreviousBlock).FirstOrDefault();
+                if (mainParent != null)
+                    break;
+
+                forkBlock = ForkChain.AsQueryable().FirstOrDefault(x => x.Header.BlockId == forkTipBlockId);
+                if (forkBlock == null)
+                    break;
+            }
+
+            return result.OrderBy(x => x.Header.Height).ToList();
+        }
 
         static bool _indexesCreated = false;
 
@@ -127,18 +237,19 @@ namespace NBlockchain.MongoDB.Services
         {
             if (!_indexesCreated)
             {
-                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.BlockId), new CreateIndexOptions() { Background = true, Unique = true });
-                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.Height), new CreateIndexOptions() { Background = true });
-                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Hashed(x => x.Header.PreviousBlock), new CreateIndexOptions() { Background = true });
+                MainChain.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.BlockId), new CreateIndexOptions() { Background = true, Unique = true });
+                MainChain.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.Height), new CreateIndexOptions() { Background = true, Unique = true });
+                MainChain.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.PreviousBlock), new CreateIndexOptions() { Background = true, Unique = true });
+                MainChain.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(new StringFieldDefinition<PersistedBlock>("Transactions.TransactionId")), new CreateIndexOptions() { Background = true });
+                MainChain.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(new StringFieldDefinition<PersistedBlock>("Transactions.Instructions.Id")), new CreateIndexOptions() { Background = true });
 
-                //?
-                
-                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(new StringFieldDefinition<PersistedBlock>("Transactions.TransactionId")), new CreateIndexOptions() { Background = true });
-                Blocks.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(new StringFieldDefinition<PersistedBlock>("Transactions.Instructions.Id")), new CreateIndexOptions() { Background = true });
+                ForkChain.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.BlockId), new CreateIndexOptions() { Background = true });
+                ForkChain.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.Height), new CreateIndexOptions() { Background = true });
+                ForkChain.Indexes.CreateOne(Builders<PersistedBlock>.IndexKeys.Ascending(x => x.Header.PreviousBlock), new CreateIndexOptions() { Background = true });
 
                 _indexesCreated = true;
             }
-        }        
+        }
     }
     
 }

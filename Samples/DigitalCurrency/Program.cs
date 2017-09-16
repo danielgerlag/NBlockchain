@@ -39,8 +39,9 @@ namespace DigitalCurrency
             _blockRepo = serviceProvider.GetService<IBlockRepository>();
             _txnBuilder = serviceProvider.GetService<ITransactionBuilder>();
 
-            Console.WriteLine("Generating key pair...");
-            var keys = _sigService.GenerateKeyPair();            
+            Console.Write("Enter passphrase:");
+            var phrase = Console.ReadLine();
+            var keys = _sigService.GetKeyPairFromPhrase(phrase);
             var address = _addressEncoder.EncodeAddress(keys.PublicKey, 0);
             Console.WriteLine($"Your address is {address}");
 
@@ -168,6 +169,11 @@ namespace DigitalCurrency
                 case "best-block":
                     var header = _blockRepo.GetNewestBlockHeader().Result;
                     Console.WriteLine($"Height: {header.Height}, Id: {BitConverter.ToString(header.BlockId)}");                    
+                    break;
+                case "gen-key":
+                    var genkeys = _sigService.GetKeyPairFromPhrase(args[1]);
+                    var address = _addressEncoder.EncodeAddress(genkeys.PublicKey, 0);
+                    Console.WriteLine($"{address}");
                     break;
                 case "avg-time":
                     var avgTime = _blockRepo.GetAverageBlockTimeInSecs(DateTime.UtcNow.AddHours(-1), DateTime.UtcNow).Result;

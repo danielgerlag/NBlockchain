@@ -16,7 +16,7 @@ namespace NBlockchain.Services.Database
         protected readonly ILogger Logger;
         protected readonly IDataConnection Connection;
 
-        protected LiteCollection<PersistedBlock> Blocks => Connection.Database.GetCollection<PersistedBlock>("Blocks");
+        protected LiteCollection<PersistedBlock> MainChain => Connection.Database.GetCollection<PersistedBlock>("MainChain");
         protected LiteCollection<PersistedInstruction> Instructions => Connection.Database.GetCollection<PersistedInstruction>("Instructions");
 
         public InstructionRepository(ILoggerFactory loggerFactory, IDataConnection connection)
