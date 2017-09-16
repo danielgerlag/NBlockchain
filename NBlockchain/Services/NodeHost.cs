@@ -53,7 +53,7 @@ namespace NBlockchain.Services
             _blockEvent.WaitOne();
             try
             {
-                _logger.LogInformation($"Recv block {BitConverter.ToString(block.Header.BlockId)} {tip}");
+                _logger.LogInformation($"Recv block {block.Header.Height} {BitConverter.ToString(block.Header.BlockId)} {tip}");
 
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                 {
@@ -96,13 +96,17 @@ namespace NBlockchain.Services
                     }
 
                     var isTip = (prevHeader.BlockId.SequenceEqual(bestHeader.BlockId));
-
                     _logger.LogInformation($"Is Tip {isTip}");
-
-                    var mainPrev = await _blockRepository.GetMainChainHeader(prevHeader.Height);
-
-                    if (mainPrev != null)
-                        mainChain = (isTip || (mainPrev.BlockId.SequenceEqual(prevHeader.BlockId)));                    
+                    
+                    if (!isTip)
+                    {
+                        var mainExisiting = await _blockRepository.GetMainChainHeader(block.Header.Height);
+                        mainChain = (mainExisiting == null);
+                    }
+                    else
+                    {
+                        mainChain = true;
+                    }
 
                     rebaseChain = ((block.Header.Height > bestHeader.Height) && !mainChain);
 
@@ -118,7 +122,7 @@ namespace NBlockchain.Services
                 else
                 {
                     _logger.LogInformation("Dont have prev block");
-                    if (!(block.Header.PreviousBlock.SequenceEqual(Block.HeadKey) && isEmpty))
+                    if (isEmpty && !block.Header.PreviousBlock.SequenceEqual(Block.HeadKey))
                     {
                         _logger.LogInformation("not first block but am empty");
                         return PeerDataResult.Ignore;
