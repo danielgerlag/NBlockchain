@@ -56,7 +56,10 @@ namespace NBlockchain.Services
                 _logger.LogInformation($"Recv block {BitConverter.ToString(block.Header.BlockId)} {tip}");
 
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
+                {
+                    _logger.LogInformation("already have block");
                     return PeerDataResult.Ignore;
+                }
 
                 if (!await _blockVerifier.Verify(block))
                 {
@@ -78,13 +81,24 @@ namespace NBlockchain.Services
 
                 if (prevHeader != null)
                 {
+                    _logger.LogInformation("Do Have previous block");
+
                     if (block.Header.Timestamp < prevHeader.Timestamp)
+                    {
+                        _logger.LogInformation("Timestamps dont match");
                         return PeerDataResult.Ignore;
+                    }
 
                     if (block.Header.Height != (prevHeader.Height + 1))
+                    {
+                        _logger.LogInformation($"Height mismatch prev: {prevHeader.Height}, this: {block.Header.Height}");
                         return PeerDataResult.Ignore;
+                    }
 
                     var isTip = (prevHeader.BlockId.SequenceEqual(bestHeader.BlockId));
+
+                    _logger.LogInformation($"Is Tip {isTip}");
+
                     var mainPrev = await _blockRepository.GetMainChainHeader(prevHeader.Height);
 
                     if (mainPrev != null)
@@ -96,12 +110,19 @@ namespace NBlockchain.Services
 
                     var expectedDifficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
                     if ((mainChain) && (block.Header.Difficulty < expectedDifficulty))
+                    {
+                        _logger.LogInformation("Difficulty mismatch");
                         return PeerDataResult.Ignore;
+                    }
                 }
                 else
                 {
+                    _logger.LogInformation("Dont have prev block");
                     if (!(block.Header.PreviousBlock.SequenceEqual(Block.HeadKey) && isEmpty))
+                    {
+                        _logger.LogInformation("not first block but am empty");
                         return PeerDataResult.Ignore;
+                    }
                     mainChain = isEmpty;
                     _logger.LogInformation($"Processing block, missing prev, main chain: {mainChain}, rebase: {rebaseChain}");
                     _peerNetwork.RequestBlock(block.Header.PreviousBlock);
@@ -109,6 +130,7 @@ namespace NBlockchain.Services
 
                 if (mainChain)
                 {
+                    _logger.LogInformation("processing for main chain");
                     if (!await _blockVerifier.VerifyTransactions(block))
                     {
                         _logger.LogWarning($"Block txn verification failed for {BitConverter.ToString(block.Header.BlockId)}");
