@@ -26,6 +26,7 @@ namespace NBlockchain.Interfaces
         Task RewindChain(byte[] blockId);
 
         Task<ICollection<Block>> GetFork(byte[] forkTipBlockId);
+                
 
         Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc);
         

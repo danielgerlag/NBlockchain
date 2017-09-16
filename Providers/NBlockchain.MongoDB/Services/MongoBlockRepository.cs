@@ -102,8 +102,11 @@ namespace NBlockchain.MongoDB.Services
 
         public Task<Block> GetNextBlock(byte[] prevBlockId)
         {
-            var query = MainChain.Find(x => x.Header.PreviousBlock == prevBlockId);
-            var persistedResult = query.FirstOrDefault();
+            var persistedResult = MainChain.Find(x => x.Header.PreviousBlock == prevBlockId).FirstOrDefault();
+            
+            if (persistedResult == null)
+                persistedResult = ForkChain.Find(x => x.Header.PreviousBlock == prevBlockId).FirstOrDefault();
+
             return persistedResult == null ? Task.FromResult<Block>(null) : Task.FromResult(persistedResult.ToBlock());
         }
 

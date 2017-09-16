@@ -234,7 +234,15 @@ namespace NBlockchain.Services
             {
                 _logger.LogDebug($"Requesting missing block after {BitConverter.ToString(prevHeader.BlockId)}");
                 //_expectedBlockList.ExpectNext(prevHeader.BlockId);
-                _peerNetwork.RequestNextBlock(prevHeader.BlockId);
+                var cached = await _blockRepository.GetNextBlock(prevHeader.BlockId);
+                if (cached == null)
+                {
+                    _peerNetwork.RequestNextBlock(prevHeader.BlockId);
+                }
+                else
+                {
+                    await RecieveBlock(cached, false);
+                }                
             }
         }
 
