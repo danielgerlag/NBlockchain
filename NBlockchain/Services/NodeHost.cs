@@ -100,8 +100,10 @@ namespace NBlockchain.Services
                     
                     if (!isTip)
                     {
+                        var prevMain = await _blockRepository.GetMainChainHeader(block.Header.Height - 1);
+                        var isPrevOnMainChain = prevMain?.BlockId.SequenceEqual(block.Header.PreviousBlock) ?? false;
                         var mainExisiting = await _blockRepository.GetMainChainHeader(block.Header.Height);
-                        mainChain = (mainExisiting == null);
+                        mainChain = ((mainExisiting == null) && (isPrevOnMainChain));
                     }
                     else
                     {
