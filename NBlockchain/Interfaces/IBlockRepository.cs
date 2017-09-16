@@ -22,7 +22,7 @@ namespace NBlockchain.Interfaces
         Task AddDetachedBlock(Block block);
 
         Task<BlockHeader> GetDivergentHeader(byte[] forkTipBlockId);
-
+                
         Task RewindChain(byte[] blockId);
 
         Task<ICollection<Block>> GetFork(byte[] forkTipBlockId);

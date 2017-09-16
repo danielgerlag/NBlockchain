@@ -171,7 +171,7 @@ namespace NBlockchain.MongoDB.Services
             var forktip = ForkChain.AsQueryable().Select(x => x.Header).Where(x => x.BlockId == forkBlockId).FirstOrDefault();
             return Task.FromResult(forktip);
         }
-
+                
         public async Task<BlockHeader> GetDivergentHeader(byte[] forkTipBlockId)
         {
             var forkHeader = await GetForkHeader(forkTipBlockId);

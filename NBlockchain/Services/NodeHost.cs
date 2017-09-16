@@ -163,6 +163,9 @@ namespace NBlockchain.Services
                         else
                         {
                             _logger.LogInformation($"Divergent block not found");
+                            var firstForkHeader = await FindKnownForkbase(block.Header.BlockId);
+                            if (firstForkHeader != null)
+                                _peerNetwork.RequestBlock(firstForkHeader.PreviousBlock);
                         }
                     }
                 }
@@ -264,5 +267,19 @@ namespace NBlockchain.Services
             return true;
         }
 
+
+        private async Task<BlockHeader> FindKnownForkbase(byte[] forkTipId)
+        {
+            _logger.LogInformation($"Searching for fork base");
+            var header = await _blockRepository.GetForkHeader(forkTipId);
+            
+            var prevHeader = await _blockRepository.GetForkHeader(header.PreviousBlock);
+            while (prevHeader != null)
+            {
+                header = prevHeader;
+                prevHeader = await _blockRepository.GetForkHeader(prevHeader.PreviousBlock);
+            }
+            return header;            
+        }
     }
 }
