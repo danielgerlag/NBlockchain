@@ -35,7 +35,7 @@ namespace NBlockchain.Services.Net
 
         public Guid RemoteId => _remoteId;
 
-        public EndPoint RemoteEndPoint => _client.Client.RemoteEndPoint;
+        public EndPoint RemoteEndPoint => _client?.Client?.RemoteEndPoint;
         public bool Outgoing { get; private set; }
         public string ConnectionString { get; private set; }
         public DateTime? LastContact => _lastContact;

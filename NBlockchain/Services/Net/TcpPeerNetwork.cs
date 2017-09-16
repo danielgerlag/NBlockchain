@@ -129,11 +129,11 @@ namespace NBlockchain.Services.Net
                     _logger.LogInformation($"Check in - Outgoing peers: {peers.Count(x => x.Outgoing)}");
                     _logger.LogInformation($"Check in - Incoming peers: {peers.Count(x => !x.Outgoing)}");
 
-                    var process = Process.GetCurrentProcess();
+                    //var process = Process.GetCurrentProcess();
 
-                    _logger.LogInformation($"Check in - Thread count: {process.Threads.Count}");
-                    _logger.LogInformation($"Check in - Working set: {process.WorkingSet64}");
-                    _logger.LogInformation($"Check in - PrivateMemorySize: {process.PrivateMemorySize64}");
+                    //_logger.LogInformation($"Check in - Thread count: {process.Threads.Count}");
+                    //_logger.LogInformation($"Check in - Working set: {process.WorkingSet64}");
+                    //_logger.LogInformation($"Check in - PrivateMemorySize: {process.PrivateMemorySize64}");
 
                 }
             });
@@ -629,7 +629,7 @@ namespace NBlockchain.Services.Net
         {
             return GetActivePeers()
                 .Where(x => !x.Outgoing)
-                .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint.ToString()))
+                .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint?.ToString()))
                 .ToList();
         }
 
@@ -637,7 +637,7 @@ namespace NBlockchain.Services.Net
         {
             return GetActivePeers()
                 .Where(x => x.Outgoing)
-                .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint.ToString()))
+                .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint?.ToString()))
                 .ToList();
         }
         

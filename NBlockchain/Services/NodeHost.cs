@@ -184,13 +184,16 @@ namespace NBlockchain.Services
                 else
                 {
                     _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
-                    GetMissingBlocks(null);
                     return PeerDataResult.Ignore;
                 }
             }
             finally
             {
                 _blockEvent.Set();
+                if (tip)
+                {
+                    GetMissingBlocks(null);
+                }
             }
         }
 
@@ -227,7 +230,7 @@ namespace NBlockchain.Services
 
             if (prevHeader == null)
             {
-                _logger.LogDebug("Requesting head block");
+                _logger.LogInformation("Requesting head block");
                 //_expectedBlockList.ExpectNext(Block.HeadKey);
                 _peerNetwork.RequestNextBlock(Block.HeadKey);
                 return;
@@ -235,7 +238,7 @@ namespace NBlockchain.Services
             
             //if ((DateTime.UtcNow.Ticks - prevHeader.Timestamp) > _parameters.BlockTime.Ticks)
             {
-                _logger.LogDebug($"Requesting missing block after {BitConverter.ToString(prevHeader.BlockId)}");
+                _logger.LogInformation($"Requesting missing block after {BitConverter.ToString(prevHeader.BlockId)}");
                 //_expectedBlockList.ExpectNext(prevHeader.BlockId);
                 var cached = await _blockRepository.GetNextBlock(prevHeader.BlockId);
                 if (cached == null)
@@ -244,7 +247,9 @@ namespace NBlockchain.Services
                 }
                 else
                 {
-                    await RecieveBlock(cached, false);
+                    _logger.LogInformation("Have cached block");
+                    var recvTask = RecieveBlock(cached, true);
+                    //GetMissingBlocks(null);
                 }                
             }
         }
