@@ -53,7 +53,7 @@ namespace NBlockchain.Services
             _blockEvent.WaitOne();
             try
             {
-                _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)} {tip}");
+                _logger.LogInformation($"Recv block {BitConverter.ToString(block.Header.BlockId)} {tip}");
 
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                     return PeerDataResult.Ignore;
@@ -92,6 +92,8 @@ namespace NBlockchain.Services
 
                     rebaseChain = ((block.Header.Height > bestHeader.Height) && !mainChain);
 
+                    _logger.LogInformation($"Processing block, have prev, main chain: {mainChain}, rebase: {rebaseChain}");
+
                     var expectedDifficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
                     if ((mainChain) && (block.Header.Difficulty < expectedDifficulty))
                         return PeerDataResult.Ignore;
@@ -101,6 +103,7 @@ namespace NBlockchain.Services
                     if (!(block.Header.PreviousBlock.SequenceEqual(Block.HeadKey) && isEmpty))
                         return PeerDataResult.Ignore;
                     mainChain = isEmpty;
+                    _logger.LogInformation($"Processing block, missing prev, main chain: {mainChain}, rebase: {rebaseChain}");
                     _peerNetwork.RequestBlock(block.Header.PreviousBlock);
                 }
 
@@ -117,29 +120,36 @@ namespace NBlockchain.Services
                 }
                 else
                 {
+                    _logger.LogInformation($"Adding detached block");
                     await _blockRepository.AddDetachedBlock(block);
                     if (rebaseChain)
                     {
+                        _logger.LogInformation($"Searching for divergent block");
                         var divergentHeader = await _blockRepository.GetDivergentHeader(block.Header.BlockId);
                         if (divergentHeader != null)
                         {
+                            _logger.LogInformation($"Rebasing chain from {divergentHeader.Height}");
                             if (!await RebaseChain(divergentHeader.BlockId, block.Header.BlockId))
                                 return PeerDataResult.Ignore;
+                        }
+                        else
+                        {
+                            _logger.LogInformation($"Divergent block not found");
                         }
                     }
                 }
 
                 //_expectedBlockList.Confirm(block.Header.PreviousBlock);
                 //_expectedBlockList.ExpectNext(block.Header.BlockId);
-
-                _logger.LogDebug($"Accepted tip {BitConverter.ToString(block.Header.BlockId)}");
-
+                
                 if (tip)
                 {
+                    _logger.LogDebug($"Accepted tip block {BitConverter.ToString(block.Header.BlockId)}");
                     return PeerDataResult.Relay;
                 }
                 else
                 {
+                    _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
                     GetMissingBlocks(null);
                     return PeerDataResult.Ignore;
                 }
