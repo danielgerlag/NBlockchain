@@ -66,7 +66,7 @@ namespace DigitalCurrency
             services.AddBlockchain(x =>
             {
                 x.UseDataConnection("node.db");
-                x.UseTransactionRepository<ICustomInstructionRepository, CustomInstructionRepository>();
+                x.UseInstructionRepository<ICustomInstructionRepository, CustomInstructionRepository>();
                 x.UseTcpPeerNetwork(port);
                 x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
                 x.AddInstructionType<TransferInstruction>();

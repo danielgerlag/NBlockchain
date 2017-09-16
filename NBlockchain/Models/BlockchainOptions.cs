@@ -120,7 +120,7 @@ namespace NBlockchain.Models
             Services.AddTransient<IPeerDiscoveryService>(sp => new MulticastDiscovery(serviceId, multicastAddress, port, sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>()));
         }
 
-        public void UseTransactionRepository<TService, TImplementation>()
+        public void UseInstructionRepository<TService, TImplementation>()
             where TImplementation : InstructionRepository, TService
             where TService : class
         {
