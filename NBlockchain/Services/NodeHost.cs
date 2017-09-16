@@ -19,7 +19,7 @@ namespace NBlockchain.Services
         private readonly ILogger _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IDateTimeProvider _dateTimeProvider;
-        private readonly IExpectedBlockList _expectedBlockList;
+        //private readonly IExpectedBlockList _expectedBlockList;
         private readonly IPeerNetwork _peerNetwork;
         private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);
         private readonly IUnconfirmedTransactionCache _unconfirmedTransactionCache;
@@ -38,7 +38,7 @@ namespace NBlockchain.Services
             _unconfirmedTransactionCache = unconfirmedTransactionCache;
             _peerNetwork = peerNetwork;
             _difficultyCalculator = difficultyCalculator;
-            _expectedBlockList = expectedBlockList;
+            //_expectedBlockList = expectedBlockList;
             _logger = loggerFactory.CreateLogger<NodeHost>();
 
             _peerNetwork.RegisterBlockReceiver(this);
@@ -46,20 +46,15 @@ namespace NBlockchain.Services
             
             _pollTimer = new Timer(GetMissingBlocks, null, TimeSpan.FromSeconds(5), _parameters.BlockTime);
         }
-                
-        public async Task<PeerDataResult> RecieveTail(Block block)
+        
+        
+        public async Task<PeerDataResult> RecieveBlock(Block block, bool tip)
         {
-            if (!_expectedBlockList.IsExpected(block.Header.PreviousBlock))
-            {
-                _logger.LogDebug($"Unexpected next block for {BitConverter.ToString(block.Header.PreviousBlock)}");
-                return PeerDataResult.Ignore;
-            }
-
             _blockEvent.WaitOne();
             try
             {
-                _logger.LogDebug($"Recv tail {BitConverter.ToString(block.Header.BlockId)}");
-                
+                _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)} {tip}");
+
                 if (await _blockRepository.HaveBlock(block.Header.BlockId))
                     return PeerDataResult.Ignore;
 
@@ -77,7 +72,8 @@ namespace NBlockchain.Services
 
                 var prevHeader = await _blockRepository.GetBlockHeader(block.Header.PreviousBlock);
                 var bestHeader = await _blockRepository.GetNewestBlockHeader();
-                bool mainChain = true;
+                var isEmpty = await _blockRepository.IsEmpty();
+                bool mainChain = false;
                 bool rebaseChain = false;
 
                 if (prevHeader != null)
@@ -87,8 +83,13 @@ namespace NBlockchain.Services
 
                     if (block.Header.Height != (prevHeader.Height + 1))
                         return PeerDataResult.Ignore;
-                    
-                    mainChain = (prevHeader.BlockId.SequenceEqual(bestHeader.BlockId));
+
+                    var isTip = (prevHeader.BlockId.SequenceEqual(bestHeader.BlockId));
+                    var mainPrev = await _blockRepository.GetMainChainHeader(prevHeader.Height);
+
+                    if (mainPrev != null)
+                        mainChain = (isTip || (mainPrev.BlockId.SequenceEqual(prevHeader.BlockId)));                    
+
                     rebaseChain = ((block.Header.Height > bestHeader.Height) && !mainChain);
 
                     var expectedDifficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
@@ -97,9 +98,11 @@ namespace NBlockchain.Services
                 }
                 else
                 {
-                    if (!(block.Header.PreviousBlock.SequenceEqual(Block.HeadKey) && await _blockRepository.IsEmpty()))
+                    if (!(block.Header.PreviousBlock.SequenceEqual(Block.HeadKey) && isEmpty))
                         return PeerDataResult.Ignore;
-                }                               
+                    mainChain = isEmpty;
+                    _peerNetwork.RequestBlock(block.Header.PreviousBlock);
+                }
 
                 if (mainChain)
                 {
@@ -120,115 +123,31 @@ namespace NBlockchain.Services
                         var divergentHeader = await _blockRepository.GetDivergentHeader(block.Header.BlockId);
                         if (divergentHeader != null)
                         {
-                            if (! await RebaseChain(divergentHeader.BlockId, block.Header.BlockId))
-                                return PeerDataResult.Ignore;
-                        }
-                    }
-                }
-                
-                _expectedBlockList.Confirm(block.Header.PreviousBlock);
-                _expectedBlockList.ExpectNext(block.Header.BlockId);
-
-                _logger.LogDebug($"Accepted tip {BitConverter.ToString(block.Header.BlockId)}");
-
-                return PeerDataResult.Relay;
-            }
-            finally
-            {
-                _blockEvent.Set();
-            }            
-        }
-        
-        public async Task<PeerDataResult> RecieveBlock(Block block)
-        {
-            if (!_expectedBlockList.IsExpected(block.Header.PreviousBlock))
-            {
-                _logger.LogDebug($"Unexpected next block for {BitConverter.ToString(block.Header.PreviousBlock)}");
-                return PeerDataResult.Ignore;
-            }
-
-            _blockEvent.WaitOne();
-            try
-            {
-                _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)}");
-
-                if (await _blockRepository.HaveBlock(block.Header.BlockId))
-                    return PeerDataResult.Ignore;
-
-                if (!await _blockVerifier.Verify(block))
-                {
-                    _logger.LogWarning($"Block verification failed for {BitConverter.ToString(block.Header.BlockId)}");
-                    return PeerDataResult.Demerit;
-                }
-
-                if (!await _blockVerifier.VerifyBlockRules(block, false))
-                {
-                    _logger.LogWarning($"Block rules failed for {BitConverter.ToString(block.Header.BlockId)}");
-                    return PeerDataResult.Ignore;
-                }
-
-                var prevHeader = await _blockRepository.GetBlockHeader(block.Header.PreviousBlock);
-                var mainFork = await _blockRepository.GetMainChainHeader(block.Header.Height);
-                var bestHeader = await _blockRepository.GetNewestBlockHeader();
-                bool mainChain = true;
-                bool rebaseChain = false;
-
-                if (prevHeader != null)
-                {
-                    if (block.Header.Timestamp < prevHeader.Timestamp)
-                        return PeerDataResult.Ignore;
-
-                    if (block.Header.Height != (prevHeader.Height + 1))
-                        return PeerDataResult.Ignore;
-                    
-                    mainChain = (mainFork != null);
-                    rebaseChain = ((block.Header.Height > bestHeader.Height) && !mainChain);
-
-                    var expectedDifficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
-
-                    if ((mainChain) && (block.Header.Difficulty < expectedDifficulty))
-                        return PeerDataResult.Ignore;
-                }
-                else
-                {
-                    if (!(block.Header.PreviousBlock.SequenceEqual(Block.HeadKey) && await _blockRepository.IsEmpty()))
-                        return PeerDataResult.Ignore;
-                }
-
-                if (mainChain)
-                {
-                    if (!await _blockVerifier.VerifyTransactions(block))
-                    {
-                        _logger.LogWarning($"Block txn verification failed for {BitConverter.ToString(block.Header.BlockId)}");
-                        return PeerDataResult.Ignore;
-                    }
-
-                    await _blockRepository.AddBlock(block);
-                }
-                else
-                {
-                    await _blockRepository.AddDetachedBlock(block);
-                    if (rebaseChain)
-                    {
-                        var divergentHeader = await _blockRepository.GetDivergentHeader(block.Header.BlockId);
-                        if (divergentHeader != null)
-                        {
                             if (!await RebaseChain(divergentHeader.BlockId, block.Header.BlockId))
                                 return PeerDataResult.Ignore;
                         }
                     }
                 }
 
-                _expectedBlockList.Confirm(block.Header.PreviousBlock);
-                _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
+                //_expectedBlockList.Confirm(block.Header.PreviousBlock);
+                //_expectedBlockList.ExpectNext(block.Header.BlockId);
+
+                _logger.LogDebug($"Accepted tip {BitConverter.ToString(block.Header.BlockId)}");
+
+                if (tip)
+                {
+                    return PeerDataResult.Relay;
+                }
+                else
+                {
+                    GetMissingBlocks(null);
+                    return PeerDataResult.Ignore;
+                }
             }
             finally
             {
                 _blockEvent.Set();
             }
-
-            GetMissingBlocks(null);
-            return PeerDataResult.Ignore;
         }
 
         public async Task<PeerDataResult> RecieveTransaction(Transaction transaction)
@@ -265,7 +184,7 @@ namespace NBlockchain.Services
             if (prevHeader == null)
             {
                 _logger.LogDebug("Requesting head block");
-                _expectedBlockList.ExpectNext(Block.HeadKey);
+                //_expectedBlockList.ExpectNext(Block.HeadKey);
                 _peerNetwork.RequestNextBlock(Block.HeadKey);
                 return;
             }
@@ -273,7 +192,7 @@ namespace NBlockchain.Services
             //if ((DateTime.UtcNow.Ticks - prevHeader.Timestamp) > _parameters.BlockTime.Ticks)
             {
                 _logger.LogDebug($"Requesting missing block after {BitConverter.ToString(prevHeader.BlockId)}");
-                _expectedBlockList.ExpectNext(prevHeader.BlockId);
+                //_expectedBlockList.ExpectNext(prevHeader.BlockId);
                 _peerNetwork.RequestNextBlock(prevHeader.BlockId);
             }
         }

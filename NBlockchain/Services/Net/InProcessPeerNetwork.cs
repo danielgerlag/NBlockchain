@@ -50,13 +50,13 @@ namespace NBlockchain.Services.Net
 
         public Action<Guid, Block> ReceiveBlock => (peer, block) =>
         {
-            _blockReciever.RecieveBlock(block);
+            _blockReciever.RecieveBlock(block, false);
         };
 
 
         public Action<Guid, Block> ReceiveTail => (peer, block) =>
         {
-            _blockReciever.RecieveTail(block);
+            _blockReciever.RecieveBlock(block, true);
         };
 
         public Action<Guid, Transaction> ReceiveTransaction => (peer, txn) =>
@@ -109,6 +109,11 @@ namespace NBlockchain.Services.Net
         }
 
         public ICollection<ConnectedPeer> GetPeersOut()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequestBlock(byte[] blockId)
         {
             throw new NotImplementedException();
         }

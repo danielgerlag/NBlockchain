@@ -88,7 +88,7 @@ namespace NBlockchain.Services
                 {
                     if (block.Header.Status == BlockStatus.Confirmed)
                     {
-                        var recvResult = await _blockReciever.RecieveTail(block);
+                        var recvResult = await _blockReciever.RecieveBlock(block, true);
                         if (recvResult == PeerDataResult.Relay)
                             _peerNetwork.BroadcastTail(block);
                     }

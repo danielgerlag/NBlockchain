@@ -204,7 +204,10 @@ namespace NBlockchain.Services.Net
                         await ProcessBlock(data, sender.RemoteId, false);
                         break;
                     case Commands.BlockRequest:
-                        await ProcessBlockRequest(data, sender);
+                        await ProcessBlockRequest(data, false, sender);
+                        break;
+                    case Commands.NextBlockRequest:
+                        await ProcessBlockRequest(data, true, sender);
                         break;
                     case Commands.PeerShare:
                         if (IsSharablePeer(Encoding.UTF8.GetString(data)))
@@ -227,9 +230,14 @@ namespace NBlockchain.Services.Net
             }
         }
 
-        private async Task ProcessBlockRequest(byte[] prevBlockId, PeerConnection peer)
+        private async Task ProcessBlockRequest(byte[] blockId, bool next, PeerConnection peer)
         {
-            var block = await _blockRepository.GetNextBlock(prevBlockId);
+            Block block = null;
+            if (next)
+                block = await _blockRepository.GetNextBlock(blockId);
+            else
+                block = await _blockRepository.GetBlock(blockId);
+
             if (block != null)
             {
                 _logger.LogDebug("Responding to block request");
@@ -242,26 +250,23 @@ namespace NBlockchain.Services.Net
             }
         }
 
-        private async Task ProcessBlock(byte[] data, Guid originId, bool tail)
+        private async Task ProcessBlock(byte[] data, Guid originId, bool tip)
         {            
             var block = DeserializeObject<Block>(data);
 
             _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)} from {originId}");
 
             var result = PeerDataResult.Ignore;
-            if (tail)
-                result = await _blockReciever.RecieveTail(block);
-            else
-                result = await _blockReciever.RecieveBlock(block);
+            result = await _blockReciever.RecieveBlock(block, tip);
 
-            if ((tail) && (result == PeerDataResult.Relay))
+            if ((tip) && (result == PeerDataResult.Relay))
             {
                 var relayTask = Task.Factory.StartNew(() =>
                 {
                     var peerList = GetActivePeers().Where(x => x.RemoteId != originId);
                     Parallel.ForEach(peerList, peer =>
                     {
-                        SendBlock(peer, data, tail);
+                        SendBlock(peer, data, tip);
                     });
                 });
             }
@@ -494,10 +499,11 @@ namespace NBlockchain.Services.Net
             Task.Factory.StartNew(async () =>
             {
                 var peers = GetActivePeers().Where(x => x.RemoteId != NodeId);
+                //TODO: round robin
                 foreach (var peer in peers)
                 {
                     _logger.LogDebug($"Requesting block {BitConverter.ToString(blockId)} from incoming peer {peer.RemoteId}");
-                    peer.Send(Commands.BlockRequest, blockId);
+                    peer.Send(Commands.NextBlockRequest, blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));
 
@@ -505,6 +511,25 @@ namespace NBlockchain.Services.Net
                         return;
                 }
             });            
+        }
+
+        public void RequestBlock(byte[] blockId)
+        {
+            Task.Factory.StartNew(async () =>
+            {
+                var peers = GetActivePeers().Where(x => x.RemoteId != NodeId);
+                //TODO: round robin
+                foreach (var peer in peers)
+                {
+                    _logger.LogDebug($"Requesting block {BitConverter.ToString(blockId)} from incoming peer {peer.RemoteId}");
+                    peer.Send(Commands.BlockRequest, blockId);
+
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    if ((await _blockRepository.GetBlockHeader(blockId)) != null)
+                        return;
+                }
+            });
         }
 
         public void Dispose()
@@ -624,7 +649,8 @@ namespace NBlockchain.Services.Net
         public const byte Block = 1;
         public const byte Txn = 2;
         public const byte BlockRequest = 3;
-        public const byte PeerShare = 4;
-        public const byte TxnRequest = 5;
+        public const byte NextBlockRequest = 4;
+        public const byte PeerShare = 5;
+        public const byte TxnRequest = 6;
     }   
 }

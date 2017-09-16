@@ -8,9 +8,7 @@ namespace NBlockchain.Interfaces
 {
     public interface IBlockReceiver
     {
-        Task<PeerDataResult> RecieveBlock(Block block);
-
-        Task<PeerDataResult> RecieveTail(Block block);
+        Task<PeerDataResult> RecieveBlock(Block block, bool tip);
     }
 
     public enum PeerDataResult { Ignore, Relay, Demerit }

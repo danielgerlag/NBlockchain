@@ -15,7 +15,9 @@ namespace NBlockchain.Interfaces
         void BroadcastTransaction(Transaction transaction);
 
         void RequestNextBlock(byte[] blockId);
-        
+
+        void RequestBlock(byte[] blockId);
+
         void RegisterBlockReceiver(IBlockReceiver blockReceiver);
 
         void RegisterTransactionReceiver(ITransactionReceiver transactionReciever);
