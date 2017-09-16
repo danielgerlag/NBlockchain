@@ -240,13 +240,13 @@ namespace NBlockchain.Services.Net
 
             if (block != null)
             {
-                _logger.LogDebug("Responding to block request");
+                _logger.LogInformation($"Responding to block request {next} {BitConverter.ToString(blockId)}");
                 var data = SerializeObject(block);                
                 SendBlock(peer, data, false);
             }
             else
             {
-                _logger.LogDebug("Unable to respond to block request");
+                _logger.LogInformation($"Unable to respond to block request {next} {BitConverter.ToString(blockId)}");
             }
         }
 
@@ -502,7 +502,7 @@ namespace NBlockchain.Services.Net
                 //TODO: round robin
                 foreach (var peer in peers)
                 {
-                    _logger.LogDebug($"Requesting block {BitConverter.ToString(blockId)} from incoming peer {peer.RemoteId}");
+                    _logger.LogInformation($"Requesting next block {BitConverter.ToString(blockId)} from peer {peer.RemoteId}");
                     peer.Send(Commands.NextBlockRequest, blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));
@@ -521,7 +521,7 @@ namespace NBlockchain.Services.Net
                 //TODO: round robin
                 foreach (var peer in peers)
                 {
-                    _logger.LogDebug($"Requesting block {BitConverter.ToString(blockId)} from incoming peer {peer.RemoteId}");
+                    _logger.LogInformation($"Requesting block {BitConverter.ToString(blockId)} from peer {peer.RemoteId}");
                     peer.Send(Commands.BlockRequest, blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));
