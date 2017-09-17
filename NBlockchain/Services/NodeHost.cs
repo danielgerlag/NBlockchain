@@ -50,8 +50,12 @@ namespace NBlockchain.Services
         
         public async Task<PeerDataResult> RecieveBlock(Block block)
         {
-            var isTip = false;
-            _blockEvent.WaitOne();
+            var isTip = false;            
+            if (!_blockEvent.WaitOne(TimeSpan.FromSeconds(30)))
+            {
+                _logger.LogError($"Timeout waiting for block lock event");
+                return PeerDataResult.Ignore;
+            }
             try
             {
                 _logger.LogInformation($"Recv block {block.Header.Height} {BitConverter.ToString(block.Header.BlockId)}");

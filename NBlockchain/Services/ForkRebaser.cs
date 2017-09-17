@@ -26,22 +26,22 @@ namespace NBlockchain.Services
             _logger.LogInformation($"Rebasing chain from {BitConverter.ToString(divergentId)} to {BitConverter.ToString(targetTipId)}");
             var currentTipHeader = await _blockRepository.GetBestBlockHeader();
             await _blockRepository.RewindChain(divergentId);
-            var chainFork = await _blockRepository.GetFork(targetTipId);
+            //var chainFork = await _blockRepository.GetFork(targetTipId);
 
-            var ffwdTask = Task.Factory.StartNew(async () =>
-            {
-                foreach (var forkedBlock in chainFork.OrderBy(x => x.Header.Height))
-                {
-                    try
-                    {
-                        await _blockReceiver.RecieveBlock(forkedBlock);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex.Message);
-                    }
-                }
-            });            
+            //var ffwdTask = Task.Factory.StartNew(async () =>
+            //{
+            //    foreach (var forkedBlock in chainFork.OrderBy(x => x.Header.Height))
+            //    {
+            //        try
+            //        {
+            //            await _blockReceiver.RecieveBlock(forkedBlock);
+            //        }
+            //        catch (Exception ex)
+            //        {
+            //            _logger.LogError(ex.Message);
+            //        }
+            //    }
+            //});            
         }
 
 
