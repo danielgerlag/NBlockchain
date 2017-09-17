@@ -24,8 +24,7 @@ namespace NBlockchain.Services.Net
         private readonly uint _port;
         private byte[] _serviceId = new byte[] { 0x0, 0x1 };
 
-        private IBlockReceiver _blockReciever;
-        private ITransactionReceiver _transactionReciever;
+        private readonly IReceiver _reciever;
 
         private readonly IBlockRepository _blockRepository;
         private readonly IEnumerable<IPeerDiscoveryService> _discoveryServices;
@@ -52,9 +51,10 @@ namespace NBlockchain.Services.Net
 
         public Guid NodeId { get; private set; }
 
-        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IUnconfirmedTransactionCache unconfirmedTransactionCache)
+        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IUnconfirmedTransactionCache unconfirmedTransactionCache, IReceiver reciever)
         {
             _port = port;
+            _reciever = reciever;
             _logger = loggerFactory.CreateLogger<TcpPeerNetwork>();
             _blockRepository = blockRepository;
             _discoveryServices = discoveryServices;
@@ -257,7 +257,7 @@ namespace NBlockchain.Services.Net
             _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)} from {originId}");
 
             var result = PeerDataResult.Ignore;
-            result = await _blockReciever.RecieveBlock(block);
+            result = await _reciever.RecieveBlock(block);
 
             if ((tip) && (result == PeerDataResult.Relay))
             {
@@ -275,7 +275,7 @@ namespace NBlockchain.Services.Net
         private async Task ProcessTransaction(byte[] data, Guid originId)
         {
             var txn = DeserializeObject<Transaction>(data);
-            var result = await _transactionReciever.RecieveTransaction(txn);
+            var result = await _reciever.RecieveTransaction(txn);
 
             if (result == PeerDataResult.Relay)
             {
@@ -430,18 +430,7 @@ namespace NBlockchain.Services.Net
                 _connectOutEvent.Set();
             }
         }
-
-        public void RegisterBlockReceiver(IBlockReceiver blockReceiver)
-        {
-            _blockReciever = blockReceiver;
-        }
-
-        public void RegisterTransactionReceiver(ITransactionReceiver transactionReciever)
-        {
-            _transactionReciever = transactionReciever;
-        }
         
-
         public void BroadcastTail(Block block)
         {
             var data = SerializeObject(block);

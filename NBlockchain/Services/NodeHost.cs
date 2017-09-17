@@ -19,6 +19,7 @@ namespace NBlockchain.Services
         private readonly ILogger _logger;
         
         private readonly IForkRebaser _forkRebaser;
+        private readonly IReceiver _receiver;
         //private readonly IExpectedBlockList _expectedBlockList;
         private readonly IPeerNetwork _peerNetwork;
         private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);
@@ -28,10 +29,11 @@ namespace NBlockchain.Services
         private readonly Timer _pollTimer;
         
 
-        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IForkRebaser forkRebaser, INetworkParameters parameters, IUnconfirmedTransactionCache unconfirmedTransactionCache, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator, IExpectedBlockList expectedBlockList)
+        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, IReceiver receiver, ILoggerFactory loggerFactory, IForkRebaser forkRebaser, INetworkParameters parameters, IUnconfirmedTransactionCache unconfirmedTransactionCache, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator, IExpectedBlockList expectedBlockList)
         {
             _blockRepository = blockRepository;
-            _blockVerifier = blockVerifier;                    
+            _blockVerifier = blockVerifier;
+            _receiver = receiver;
             _parameters = parameters;
             _forkRebaser = forkRebaser;
             _unconfirmedTransactionCache = unconfirmedTransactionCache;
@@ -40,15 +42,13 @@ namespace NBlockchain.Services
             //_expectedBlockList = expectedBlockList;
             _logger = loggerFactory.CreateLogger<NodeHost>();
 
-            _peerNetwork.RegisterBlockReceiver(this);
-            _peerNetwork.RegisterTransactionReceiver(this);
-            _forkRebaser.RegisterBlockReceiver(this);
-            
+            _receiver.OnReceiveBlock += OnRecieveBlock;
+            _receiver.OnRecieveTransaction += OnRecieveTransaction;
+
             _pollTimer = new Timer(GetMissingBlocks, null, TimeSpan.FromSeconds(5), _parameters.BlockTime);
         }
-        
-        
-        public async Task<PeerDataResult> RecieveBlock(Block block)
+                
+        private async Task<PeerDataResult> OnRecieveBlock(Block block)
         {
             var isTip = false;            
             if (!_blockEvent.WaitOne(TimeSpan.FromSeconds(30)))
@@ -197,7 +197,7 @@ namespace NBlockchain.Services
             }
         }
 
-        public async Task<PeerDataResult> RecieveTransaction(Transaction transaction)
+        private async Task<PeerDataResult> OnRecieveTransaction(Transaction transaction)
         {            
             _logger.LogDebug($"Recv txn {BitConverter.ToString(transaction.TransactionId)}");
             var txnResult = await _blockVerifier.VerifyTransaction(transaction, _unconfirmedTransactionCache.Get);
@@ -220,7 +220,7 @@ namespace NBlockchain.Services
         public async Task SendTransaction(Transaction transaction)
         {
             _logger.LogDebug("Sending txn");
-            await RecieveTransaction(transaction);
+            await _receiver.RecieveTransaction(transaction);
             _peerNetwork.BroadcastTransaction(transaction);
         }
         
@@ -250,7 +250,7 @@ namespace NBlockchain.Services
                 else
                 {
                     _logger.LogInformation("Have cached block");
-                    var recvTask = RecieveBlock(cached);
+                    var recvTask = _receiver.RecieveBlock(cached);
                     //GetMissingBlocks(null);
                 }                
             }

@@ -12,27 +12,18 @@ namespace NBlockchain.Services.Net
         private static readonly IList<InProcessPeerNetwork> Peers = new List<InProcessPeerNetwork>();
         private readonly IBlockRepository _blockRepository;
 
-        private IBlockReceiver _blockReciever;
-        private ITransactionReceiver _transactionReciever;
+        private IReceiver _reciever;
 
         public Guid NodeId { get; private set; }
 
-        public InProcessPeerNetwork(IBlockRepository blockRepository)
+        public InProcessPeerNetwork(IBlockRepository blockRepository, IReceiver reciever)
         {
             _blockRepository = blockRepository;
+            _reciever = reciever;
             NodeId = Guid.NewGuid();
             Peers.Add(this);
         }
-
-        public void RegisterBlockReceiver(IBlockReceiver blockReceiver)
-        {
-            _blockReciever = blockReceiver;
-        }
-
-        public void RegisterTransactionReceiver(ITransactionReceiver transactionReciever)
-        {
-            _transactionReciever = transactionReciever;
-        }
+        
 
 #pragma warning disable CS1998
         public async Task DiscoverPeers()
@@ -50,18 +41,18 @@ namespace NBlockchain.Services.Net
 
         public Action<Guid, Block> ReceiveBlock => (peer, block) =>
         {
-            _blockReciever.RecieveBlock(block);
+            _reciever.RecieveBlock(block);
         };
 
 
         public Action<Guid, Block> ReceiveTail => (peer, block) =>
         {
-            _blockReciever.RecieveBlock(block);
+            _reciever.RecieveBlock(block);
         };
 
         public Action<Guid, Transaction> ReceiveTransaction => (peer, txn) =>
         {
-            _transactionReciever.RecieveTransaction(txn);
+            _reciever.RecieveTransaction(txn);
         };
 
         public Action<Guid, byte[]> ReceiveBlockRequest => async (peer, txn) =>

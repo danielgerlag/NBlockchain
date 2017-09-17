@@ -25,7 +25,7 @@ namespace NBlockchain.Services
         private readonly IUnconfirmedTransactionCache _unconfirmedTransactionCache;
         private readonly IBlockRepository _blockRepository;
         private readonly IPeerNetwork _peerNetwork;
-        private readonly IBlockReceiver _blockReciever;
+        private readonly IReceiver _blockReciever;
         private readonly IDifficultyCalculator _difficultyCalculator;
 
         private KeyPair _builderKeys;
@@ -36,7 +36,7 @@ namespace NBlockchain.Services
         private CancellationTokenSource _blockCancelToken;
                 
 
-        public BlockMiner(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IUnconfirmedTransactionCache unconfirmedTransactionCache, IBlockRepository blockRepository, IBlockReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
+        public BlockMiner(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IUnconfirmedTransactionCache unconfirmedTransactionCache, IBlockRepository blockRepository, IReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
             _peerNetwork= peerNetwork;

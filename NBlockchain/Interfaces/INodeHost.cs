@@ -3,7 +3,7 @@ using NBlockchain.Models;
 
 namespace NBlockchain.Interfaces
 {
-    public interface INodeHost : IBlockReceiver, ITransactionReceiver
+    public interface INodeHost
     {
         Task SendTransaction(Transaction transaction);
     }

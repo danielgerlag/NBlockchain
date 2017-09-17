@@ -7,6 +7,5 @@ namespace NBlockchain.Interfaces
     {
         Task<BlockHeader> FindKnownForkbase(byte[] forkTipId);
         Task RebaseChain(byte[] divergentId, byte[] targetTipId);
-        void RegisterBlockReceiver(IBlockReceiver blockReceiver);
     }
 }

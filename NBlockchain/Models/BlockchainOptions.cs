@@ -68,7 +68,7 @@ namespace NBlockchain.Models
 
         public void UseTcpPeerNetwork(uint port)
         {
-            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>(), sp.GetService<IUnconfirmedTransactionCache>()));
+            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>(), sp.GetService<IUnconfirmedTransactionCache>(), sp.GetService<IReceiver>()));
         }
 
         public void UseDataConnection(string connectionString)
@@ -166,8 +166,8 @@ namespace NBlockchain.Models
             //AddDefault<IBlockRepository, InMemoryBlockRepository>(ServiceLifetime.Singleton);
 
             AddDefault<INodeHost, NodeHost>(ServiceLifetime.Singleton);
-            AddDefault<IBlockReceiver>(ServiceLifetime.Singleton, sp => sp.GetService<INodeHost>());
-            AddDefault<ITransactionReceiver>(ServiceLifetime.Singleton, sp => sp.GetService<INodeHost>());
+            AddDefault<IReceiver, Receiver>(ServiceLifetime.Singleton);
+            
 
             AddDefault<IDateTimeProvider, DateTimeProvider>(ServiceLifetime.Singleton);
             AddDefault<IDifficultyCalculator, DifficultyCalculator>(ServiceLifetime.Singleton);

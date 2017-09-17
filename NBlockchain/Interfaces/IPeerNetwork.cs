@@ -16,11 +16,7 @@ namespace NBlockchain.Interfaces
 
         void RequestNextBlock(byte[] blockId);
 
-        void RequestBlock(byte[] blockId);
-
-        void RegisterBlockReceiver(IBlockReceiver blockReceiver);
-
-        void RegisterTransactionReceiver(ITransactionReceiver transactionReciever);
+        void RequestBlock(byte[] blockId);                
 
         Task DiscoverPeers();
 

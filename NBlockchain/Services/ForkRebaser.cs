@@ -12,7 +12,7 @@ namespace NBlockchain.Services
     public class ForkRebaser : IForkRebaser
     {
         private readonly IBlockRepository _blockRepository;        
-        private IBlockReceiver _blockReceiver;
+        //private IReceiver _blockReceiver;
         private readonly ILogger _logger;
 
         public ForkRebaser(IBlockRepository blockRepository, ILoggerFactory loggerFactory)
@@ -58,10 +58,6 @@ namespace NBlockchain.Services
             }
             return header;
         }
-
-        public void RegisterBlockReceiver(IBlockReceiver blockReceiver)
-        {
-            _blockReceiver = blockReceiver;
-        }
+        
     }
 }
