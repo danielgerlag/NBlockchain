@@ -167,7 +167,7 @@ namespace DigitalCurrency
                         Console.WriteLine($"Balance = {_txnRepo.GetAccountBalance(args[1])}");
                     break;
                 case "best-block":
-                    var header = _blockRepo.GetNewestBlockHeader().Result;
+                    var header = _blockRepo.GetBestBlockHeader().Result;
                     Console.WriteLine($"Height: {header.Height}, Id: {BitConverter.ToString(header.BlockId)}");                    
                     break;
                 case "gen-key":

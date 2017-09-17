@@ -257,7 +257,7 @@ namespace NBlockchain.Services.Net
             _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)} from {originId}");
 
             var result = PeerDataResult.Ignore;
-            result = await _blockReciever.RecieveBlock(block, tip);
+            result = await _blockReciever.RecieveBlock(block);
 
             if ((tip) && (result == PeerDataResult.Relay))
             {

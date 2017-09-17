@@ -50,13 +50,13 @@ namespace NBlockchain.Services.Net
 
         public Action<Guid, Block> ReceiveBlock => (peer, block) =>
         {
-            _blockReciever.RecieveBlock(block, false);
+            _blockReciever.RecieveBlock(block);
         };
 
 
         public Action<Guid, Block> ReceiveTail => (peer, block) =>
         {
-            _blockReciever.RecieveBlock(block, true);
+            _blockReciever.RecieveBlock(block);
         };
 
         public Action<Guid, Transaction> ReceiveTransaction => (peer, txn) =>

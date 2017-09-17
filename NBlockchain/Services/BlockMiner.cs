@@ -71,7 +71,7 @@ namespace NBlockchain.Services
             while (!_buildCancelToken.IsCancellationRequested)
             {
                 _blockCancelToken = new CancellationTokenSource();
-                var prevHeader = await _blockRepository.GetNewestBlockHeader();
+                var prevHeader = await _blockRepository.GetBestBlockHeader();
                 if (prevHeader == null)
                 {
                     if (!_buildGenesis)
@@ -88,7 +88,7 @@ namespace NBlockchain.Services
                 {
                     if (block.Header.Status == BlockStatus.Confirmed)
                     {
-                        var recvResult = await _blockReciever.RecieveBlock(block, true);
+                        var recvResult = await _blockReciever.RecieveBlock(block);
                         if (recvResult == PeerDataResult.Relay)
                             _peerNetwork.BroadcastTail(block);
                     }

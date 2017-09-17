@@ -178,6 +178,7 @@ namespace NBlockchain.Models
             AddDefault<IExpectedBlockList, ExpectedBlockList>(ServiceLifetime.Singleton);
 
             AddDefault<ITransactionBuilder, TransactionBuilder>(ServiceLifetime.Singleton);
+            AddDefault<IForkRebaser, ForkRebaser>(ServiceLifetime.Singleton);
 
         }
 

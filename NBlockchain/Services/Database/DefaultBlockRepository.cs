@@ -18,7 +18,7 @@ namespace NBlockchain.Services.Database
         private readonly IAddressEncoder _addressEncoder;
 
         protected LiteCollection<PersistedBlock> MainChain => _connection.Database.GetCollection<PersistedBlock>("MainChain");
-        protected LiteCollection<PersistedBlock> ForkChain => _connection.Database.GetCollection<PersistedBlock>("ForkChain");
+        protected LiteCollection<PersistedOrphan> ForkChain => _connection.Database.GetCollection<PersistedOrphan>("ForkChain");
         protected LiteCollection<PersistedInstruction> Instructions => _connection.Database.GetCollection<PersistedInstruction>("Instructions");
 
         public DefaultBlockRepository(ILoggerFactory loggerFactory, IDataConnection connection, IAddressEncoder addressEncoder)
@@ -61,6 +61,8 @@ namespace NBlockchain.Services.Database
                 Instructions.InsertBulk(pt);
             }
 
+            ForkChain.Delete(x => x.Entity.Header.BlockId == block.Header.BlockId);
+
             return Task.CompletedTask;
         }
 
@@ -76,36 +78,45 @@ namespace NBlockchain.Services.Database
             return Task.FromResult(count == 0);
         }
 
-        public async Task<BlockHeader> GetNewestBlockHeader()
+        public async Task<BlockHeader> GetBestBlockHeader()
         {
             if (await IsEmpty())
                 return null;
 
             var max = MainChain.Max<uint>(x => x.Entity.Header.Height).AsInt64;
-            var block = MainChain.Find(Query.EQ("Entity.Header.Height", max)).First();
+            var block = MainChain.Find(Query.EQ("Entity.Header.Height", max)).FirstOrDefault();
             return block?.Entity.Header;
         }
 
         public Task<Block> GetNextBlock(byte[] prevBlockId)
         {
-            var blockHeader = MainChain.FindOne(x => x.Entity.Header.PreviousBlock == prevBlockId);
+            var persistedBlock = MainChain.FindOne(x => x.Entity.Header.PreviousBlock == prevBlockId);
 
-            if (blockHeader == null)
-                return Task.FromResult<Block>(null);
-
-            var result = new Block();
-            result.Header = blockHeader.Entity.Header;
-            result.MerkleRootNode = blockHeader.Entity.MerkleRootNode;
-
-            var instructions = Instructions.Find(Query.EQ("BlockId", blockHeader.Entity.Header.BlockId));
-            result.Transactions = instructions
-                .GroupBy(x => x.TransactionId, new ByteArrayEqualityComparer())
-                .Select(x =>  new Transaction(x.Select(y => y.Entity).ToList()) { TransactionId = x.Key })
-                .ToList();
+            if (persistedBlock == null)
+            {
+                var forkBlock = ForkChain.FindOne(x => x.Entity.Header.PreviousBlock == prevBlockId);
+                return Task.FromResult(forkBlock?.Entity);
+            }
+            var result = RehydratePersistedBlock(persistedBlock);
 
             return Task.FromResult(result);
         }
-        
+
+        private Block RehydratePersistedBlock(PersistedBlock persistedBlock)
+        {
+            var result = new Block();
+            result.Header = persistedBlock.Entity.Header;
+            result.MerkleRootNode = persistedBlock.Entity.MerkleRootNode;
+
+            var instructions = Instructions.Find(Query.EQ("BlockId", persistedBlock.Entity.Header.BlockId));
+            result.Transactions = instructions
+                .GroupBy(x => x.TransactionId, new ByteArrayEqualityComparer())
+                .Select(x => new Transaction(x.Select(y => y.Entity).ToList()) { TransactionId = x.Key })
+                .ToList();
+
+            return result;
+        }
+
         public Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
         {
             var startTicks = startUtc.Ticks;
@@ -119,49 +130,114 @@ namespace NBlockchain.Services.Database
             return Task.FromResult(result);
         }
 
-        public Task<BlockHeader> GetBlockHeader(byte[] blockId)
+        public async Task<BlockHeader> GetBlockHeader(byte[] blockId)
         {
-            throw new NotImplementedException();
+            var block = MainChain.Find(Query.EQ("Entity.Header.BlockId", blockId)).FirstOrDefault();
+            if (block == null)
+            {
+                var fork = ForkChain.Find(Query.EQ("Entity.Header.BlockId", blockId)).FirstOrDefault();
+                return fork?.Entity.Header;
+            }
+
+            return block?.Entity.Header;
         }
 
-        public Task<Block> GetBlock(byte[] blockId)
+        public async Task<Block> GetBlock(byte[] blockId)
         {
-            throw new NotImplementedException();
+            var block = MainChain.Find(Query.EQ("Entity.Header.BlockId", blockId)).FirstOrDefault();
+            if (block == null)
+            {
+                var fork = ForkChain.Find(Query.EQ("Entity.Header.BlockId", blockId)).FirstOrDefault();
+                return fork?.Entity;
+            }
+
+            return RehydratePersistedBlock(block);
         }
 
-        public Task<BlockHeader> GetMainChainHeader(uint height)
+        public async Task<BlockHeader> GetMainChainHeader(uint height)
         {
-            throw new NotImplementedException();
+            //TODO: project result
+            var block = MainChain.Find(Query.EQ("Entity.Header.Height", Convert.ToInt64(height))).FirstOrDefault();
+            return block?.Entity.Header;
         }
 
-        public Task<BlockHeader> GetForkHeader(byte[] forkBlockId)
+        public async Task<BlockHeader> GetForkHeader(byte[] forkBlockId)
         {
-            throw new NotImplementedException();
+            //TODO: project result
+            var fork = ForkChain.Find(Query.EQ("Entity.Header.BlockId", forkBlockId)).FirstOrDefault();
+            return fork?.Entity.Header;
         }
 
-        public Task AddDetachedBlock(Block block)
+        public async Task AddDetachedBlock(Block block)
         {
-            throw new NotImplementedException();
+            ForkChain.Insert(new PersistedOrphan(block));
         }
 
-        public Task<BlockHeader> GetDivergentHeader(byte[] forkTipBlockId)
+        public async Task<BlockHeader> GetDivergentHeader(byte[] forkTipBlockId)
         {
-            throw new NotImplementedException();
+            var forkHeader = await GetForkHeader(forkTipBlockId);
+            if (forkHeader == null)
+                return null;
+
+            while (!forkHeader.PreviousBlock.SequenceEqual(Block.HeadKey))
+            {
+                var mainParent = MainChain.Find(x => x.Entity.Header.BlockId == forkHeader.PreviousBlock).FirstOrDefault();
+                if (mainParent != null)
+                    return mainParent.Entity.Header;
+
+                forkHeader = await GetForkHeader(forkHeader.PreviousBlock);
+                if (forkHeader == null)
+                    return null;
+            }
+            return null;
         }
 
-        public Task RewindChain(byte[] blockId)
+        public async Task RewindChain(byte[] blockId)
         {
-            throw new NotImplementedException();
+            var divergent = MainChain.Find(x => x.Entity.Header.BlockId == blockId).FirstOrDefault();
+            if (divergent == null)
+                return;
+
+            var archiveFork = MainChain
+                .Find(x => x.Entity.Header.Height > divergent.Entity.Header.Height)
+                .ToList()
+                .Select(x => RehydratePersistedBlock(x));
+
+            foreach (var block in archiveFork.OrderByDescending(x => x.Header.Height))
+            {
+                await AddDetachedBlock(block);
+                Instructions.Delete(x => x.BlockId == block.Header.BlockId);
+                MainChain.Delete(x => x.Entity.Header.BlockId == block.Header.BlockId);
+            }
         }
 
-        public Task<ICollection<Block>> GetFork(byte[] forkTipBlockId)
+        public async Task<ICollection<Block>> GetFork(byte[] forkTipBlockId)
         {
-            throw new NotImplementedException();
+            var result = new List<Block>();
+
+            var forkBlock = ForkChain.Find(x => x.Entity.Header.BlockId == forkTipBlockId).FirstOrDefault();
+            if (forkBlock == null)
+                return result;
+
+            while (!forkBlock.Entity.Header.PreviousBlock.SequenceEqual(Block.HeadKey))
+            {
+                result.Add(forkBlock.Entity);
+                var mainParent = MainChain.Find(x => x.Entity.Header.BlockId == forkBlock.Entity.Header.PreviousBlock).FirstOrDefault();
+                if (mainParent != null)
+                    break;
+
+                forkBlock = ForkChain.Find(x => x.Entity.Header.BlockId == forkTipBlockId).FirstOrDefault();
+                if (forkBlock == null)
+                    break;
+            }
+
+            return result.OrderBy(x => x.Header.Height).ToList();
         }
 
         public Task<bool> HaveBlockForkChain(byte[] blockId)
         {
-            throw new NotImplementedException();
+            var result = ForkChain.Exists(x => x.Entity.Header.BlockId == blockId);
+            return Task.FromResult(result);
         }
     }
 }

@@ -20,6 +20,19 @@ namespace NBlockchain.Services.Database
         }
     }
 
+    public class PersistedOrphan : PersistedEntity<Block, ObjectId>
+    {
+        public PersistedOrphan()
+        {
+        }
+
+        public PersistedOrphan(Block block)
+        {
+            Entity = block;
+        }
+    }
+
+
     public class BlockInfo
     {
         public BlockHeader Header { get; set; }
@@ -27,7 +40,6 @@ namespace NBlockchain.Services.Database
 
         public BlockInfo()
         {
-
         }
 
         public BlockInfo(Block block)
@@ -36,4 +48,5 @@ namespace NBlockchain.Services.Database
             MerkleRootNode = block.MerkleRootNode;
         }
     }
+        
 }

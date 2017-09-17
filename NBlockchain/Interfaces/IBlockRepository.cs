@@ -11,7 +11,7 @@ namespace NBlockchain.Interfaces
         Task<bool> HaveBlockMainChain(byte[] blockId);
         Task<bool> HaveBlockForkChain(byte[] blockId);
         Task<bool> IsEmpty();
-        Task<BlockHeader> GetNewestBlockHeader();
+        Task<BlockHeader> GetBestBlockHeader();
         Task<Block> GetNextBlock(byte[] prevBlockId);
 
         Task<BlockHeader> GetBlockHeader(byte[] blockId);

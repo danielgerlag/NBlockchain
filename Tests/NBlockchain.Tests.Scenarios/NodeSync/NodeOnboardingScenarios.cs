@@ -80,12 +80,12 @@ namespace NBlockchain.Tests.Scenarios.NodeSync
             net2.Open();
             net3.Open();
 
-            var target = await repo1.GetNewestBlockHeader();
+            var target = await repo1.GetBestBlockHeader();
             var timeOut = DateTime.Now.AddSeconds(30);
             while (timeOut > DateTime.Now)
             {
                 await Task.Delay(500);
-                var header3 = await repo3.GetNewestBlockHeader();
+                var header3 = await repo3.GetBestBlockHeader();
                 if (header3?.Height == target.Height)
                     break;
             }
@@ -94,8 +94,8 @@ namespace NBlockchain.Tests.Scenarios.NodeSync
             net2.Close();
             net3.Close();
 
-            var last2 = await repo2.GetNewestBlockHeader();
-            var last3 = await repo3.GetNewestBlockHeader();
+            var last2 = await repo2.GetBestBlockHeader();
+            var last3 = await repo3.GetBestBlockHeader();
 
             last2.Height.Should().Be(target.Height);
             last3.Height.Should().Be(target.Height);

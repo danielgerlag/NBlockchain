@@ -17,8 +17,8 @@ namespace NBlockchain.Services
         private readonly IBlockRepository _blockRepository;
         private readonly IBlockVerifier _blockVerifier;        
         private readonly ILogger _logger;
-        private readonly IServiceProvider _serviceProvider;
-        private readonly IDateTimeProvider _dateTimeProvider;
+        
+        private readonly IForkRebaser _forkRebaser;
         //private readonly IExpectedBlockList _expectedBlockList;
         private readonly IPeerNetwork _peerNetwork;
         private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);
@@ -28,13 +28,12 @@ namespace NBlockchain.Services
         private readonly Timer _pollTimer;
         
 
-        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IServiceProvider serviceProvider, INetworkParameters parameters, IDateTimeProvider dateTimeProvider, IUnconfirmedTransactionCache unconfirmedTransactionCache, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator, IExpectedBlockList expectedBlockList)
+        public NodeHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, ILoggerFactory loggerFactory, IForkRebaser forkRebaser, INetworkParameters parameters, IUnconfirmedTransactionCache unconfirmedTransactionCache, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator, IExpectedBlockList expectedBlockList)
         {
             _blockRepository = blockRepository;
-            _blockVerifier = blockVerifier;        
-            _serviceProvider = serviceProvider;
+            _blockVerifier = blockVerifier;                    
             _parameters = parameters;
-            _dateTimeProvider = dateTimeProvider;
+            _forkRebaser = forkRebaser;
             _unconfirmedTransactionCache = unconfirmedTransactionCache;
             _peerNetwork = peerNetwork;
             _difficultyCalculator = difficultyCalculator;
@@ -43,17 +42,18 @@ namespace NBlockchain.Services
 
             _peerNetwork.RegisterBlockReceiver(this);
             _peerNetwork.RegisterTransactionReceiver(this);
+            _forkRebaser.RegisterBlockReceiver(this);
             
             _pollTimer = new Timer(GetMissingBlocks, null, TimeSpan.FromSeconds(5), _parameters.BlockTime);
         }
         
         
-        public async Task<PeerDataResult> RecieveBlock(Block block, bool tip)
+        public async Task<PeerDataResult> RecieveBlock(Block block)
         {
             _blockEvent.WaitOne();
             try
             {
-                _logger.LogInformation($"Recv block {block.Header.Height} {BitConverter.ToString(block.Header.BlockId)} {tip}");
+                _logger.LogInformation($"Recv block {block.Header.Height} {BitConverter.ToString(block.Header.BlockId)}");
 
                 if (await _blockRepository.HaveBlockMainChain(block.Header.BlockId))
                 {
@@ -74,10 +74,12 @@ namespace NBlockchain.Services
                 }
 
                 var prevHeader = await _blockRepository.GetBlockHeader(block.Header.PreviousBlock);
-                var bestHeader = await _blockRepository.GetNewestBlockHeader();
+                var bestHeader = await _blockRepository.GetBestBlockHeader();
                 var isEmpty = await _blockRepository.IsEmpty();
                 bool mainChain = false;
                 bool rebaseChain = false;
+                var isTip = (block.Header.PreviousBlock.SequenceEqual(bestHeader?.BlockId ?? Block.HeadKey));
+                _logger.LogInformation($"Is Tip {isTip}");
 
                 if (prevHeader != null)
                 {
@@ -93,10 +95,7 @@ namespace NBlockchain.Services
                     {
                         _logger.LogInformation($"Height mismatch prev: {prevHeader.Height}, this: {block.Header.Height}");
                         return PeerDataResult.Ignore;
-                    }
-
-                    var isTip = (prevHeader.BlockId.SequenceEqual(bestHeader.BlockId));
-                    _logger.LogInformation($"Is Tip {isTip}");
+                    }                                       
                     
                     if (!isTip)
                     {
@@ -160,13 +159,12 @@ namespace NBlockchain.Services
                         if (divergentHeader != null)
                         {
                             _logger.LogInformation($"Rebasing chain from {divergentHeader.Height}");
-                            if (!await RebaseChain(divergentHeader.BlockId, block.Header.BlockId))
-                                return PeerDataResult.Ignore;
+                            await _forkRebaser.RebaseChain(divergentHeader.BlockId, block.Header.BlockId);
                         }
                         else
                         {
                             _logger.LogInformation($"Divergent block not found");
-                            var firstForkHeader = await FindKnownForkbase(block.Header.BlockId);
+                            var firstForkHeader = await _forkRebaser.FindKnownForkbase(block.Header.BlockId);
                             if (firstForkHeader != null)
                                 _peerNetwork.RequestBlock(firstForkHeader.PreviousBlock);
                         }
@@ -176,24 +174,21 @@ namespace NBlockchain.Services
                 //_expectedBlockList.Confirm(block.Header.PreviousBlock);
                 //_expectedBlockList.ExpectNext(block.Header.BlockId);
                 
-                if (tip)
+                if (isTip)
                 {
-                    _logger.LogDebug($"Accepted tip block {BitConverter.ToString(block.Header.BlockId)}");
+                    _logger.LogDebug($"Accepted tip block {BitConverter.ToString(block.Header.BlockId)}");                    
                     return PeerDataResult.Relay;
                 }
                 else
                 {
                     _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
+                    var missingBlockTask = Task.Factory.StartNew(() => GetMissingBlocks(null));
                     return PeerDataResult.Ignore;
                 }
             }
             finally
             {
-                _blockEvent.Set();
-                if (tip)
-                {
-                    GetMissingBlocks(null);
-                }
+                _blockEvent.Set();                
             }
         }
 
@@ -226,7 +221,7 @@ namespace NBlockchain.Services
         
         private async void GetMissingBlocks(object state)
         {
-            var prevHeader = await _blockRepository.GetNewestBlockHeader();
+            var prevHeader = await _blockRepository.GetBestBlockHeader();
 
             if (prevHeader == null)
             {
@@ -248,54 +243,11 @@ namespace NBlockchain.Services
                 else
                 {
                     _logger.LogInformation("Have cached block");
-                    var recvTask = RecieveBlock(cached, true);
+                    var recvTask = RecieveBlock(cached);
                     //GetMissingBlocks(null);
                 }                
             }
         }
-
-        private async Task<bool> RebaseChain(byte[] divergentId, byte[] targetTipId)
-        {
-            _logger.LogInformation($"Rebasing chain from {BitConverter.ToString(divergentId)} to {BitConverter.ToString(targetTipId)}");
-            var currentTipHeader = await _blockRepository.GetNewestBlockHeader();
-            await _blockRepository.RewindChain(divergentId);
-            var chainFork = await _blockRepository.GetFork(targetTipId);
-            foreach (var forkedBlock in chainFork.OrderBy(x => x.Header.Height))
-            {
-                var prevHeader = await _blockRepository.GetBlockHeader(forkedBlock.Header.PreviousBlock);
-                var expectedDifficulty = await _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp);
-
-                if (forkedBlock.Header.Difficulty < expectedDifficulty)
-                {
-                    _logger.LogWarning($"Rebase failed on expected difficulty {BitConverter.ToString(forkedBlock.Header.BlockId)}");
-                    await RebaseChain(divergentId, currentTipHeader.BlockId);
-                    return false;
-                }                 
-
-                if (!await _blockVerifier.VerifyTransactions(forkedBlock))
-                {
-                    _logger.LogWarning($"Rebase failed on block txn verification {BitConverter.ToString(forkedBlock.Header.BlockId)}");
-                    await RebaseChain(divergentId, currentTipHeader.BlockId);
-                    return false;
-                }
-                await _blockRepository.AddBlock(forkedBlock);
-            }
-            return true;
-        }
-
-
-        private async Task<BlockHeader> FindKnownForkbase(byte[] forkTipId)
-        {
-            _logger.LogInformation($"Searching for fork base");
-            var header = await _blockRepository.GetForkHeader(forkTipId);
-            
-            var prevHeader = await _blockRepository.GetForkHeader(header.PreviousBlock);
-            while (prevHeader != null)
-            {
-                header = prevHeader;
-                prevHeader = await _blockRepository.GetForkHeader(prevHeader.PreviousBlock);
-            }
-            return header;            
-        }
+                
     }
 }

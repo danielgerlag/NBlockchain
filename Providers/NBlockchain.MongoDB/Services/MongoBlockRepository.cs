@@ -71,6 +71,7 @@ namespace NBlockchain.MongoDB.Services
                 persisted.Statistics.BlockTime = Convert.ToInt32(TimeSpan.FromTicks(block.Header.Timestamp - prevHeader.Timestamp).TotalSeconds);
 
             MainChain.InsertOne(persisted);
+            ForkChain.DeleteMany(x => x.Header.BlockId == block.Header.BlockId);
 
             await Task.Yield();
         }
@@ -92,7 +93,7 @@ namespace NBlockchain.MongoDB.Services
             return Task.FromResult(MainChain.Count(x => true) == 0);
         }
 
-        public Task<BlockHeader> GetNewestBlockHeader()
+        public Task<BlockHeader> GetBestBlockHeader()
         {
             if (MainChain.Count(x => true) == 0)
                 return Task.FromResult<BlockHeader>(null);

@@ -24,7 +24,7 @@ namespace NBlockchain.Services
         {
             var end = new DateTime(timestamp + 1);
             var start = end.Subtract(_sampleInterval);
-            var latestHeader = await _blockRepository.GetNewestBlockHeader();
+            var latestHeader = await _blockRepository.GetBestBlockHeader();
 
             if (latestHeader == null)
                 return _genesisValue;
