@@ -14,10 +14,10 @@ dotnet add package NBlockchain.MongoDB --version 0.1.0-alpha
 ## Usage
 
 ```c#
-services.AddBlockchain(x =>
-{
-    x.UseMongoDB(@"mongodb://localhost:27017", "my-blockchain-db")
-        .UseTransactionRepository<ITransactionRepository, TransactionRepository>();
+services.AddBlockchain(blockchain =>
+{       
+    blockchain.UseMongoDB(@"mongodb://localhost:27017", "my-blockchain-db")
+        .UseInstructionRepository<ICustomInstructionRepository, CustomMongoInstructionRepository>();
 	...
 }
 ```
