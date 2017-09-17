@@ -180,6 +180,7 @@ namespace NBlockchain.Services
             {
                 _blockEvent.Set();                
             }
+            var missingBlockTask = Task.Factory.StartNew(() => GetMissingBlocks(null));
             if (isTip)
             {
                 _logger.LogDebug($"Accepted tip block {BitConverter.ToString(block.Header.BlockId)}");
@@ -188,7 +189,6 @@ namespace NBlockchain.Services
             else
             {
                 _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
-                var missingBlockTask = Task.Factory.StartNew(() => GetMissingBlocks(null));
                 return PeerDataResult.Ignore;
             }
         }
@@ -222,6 +222,8 @@ namespace NBlockchain.Services
         
         private async void GetMissingBlocks(object state)
         {
+            _logger.LogInformation("GetMissingBlocks");
+
             var prevHeader = await _blockRepository.GetBestBlockHeader();
 
             if (prevHeader == null)
