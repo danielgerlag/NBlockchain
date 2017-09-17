@@ -50,6 +50,7 @@ namespace NBlockchain.Services
         
         public async Task<PeerDataResult> RecieveBlock(Block block)
         {
+            var isTip = false;
             _blockEvent.WaitOne();
             try
             {
@@ -78,7 +79,7 @@ namespace NBlockchain.Services
                 var isEmpty = await _blockRepository.IsEmpty();
                 bool mainChain = false;
                 bool rebaseChain = false;
-                var isTip = (block.Header.PreviousBlock.SequenceEqual(bestHeader?.BlockId ?? Block.HeadKey));
+                isTip = (block.Header.PreviousBlock.SequenceEqual(bestHeader?.BlockId ?? Block.HeadKey));
                 _logger.LogInformation($"Is Tip {isTip}");
 
                 if (prevHeader != null)
@@ -173,22 +174,22 @@ namespace NBlockchain.Services
 
                 //_expectedBlockList.Confirm(block.Header.PreviousBlock);
                 //_expectedBlockList.ExpectNext(block.Header.BlockId);
-                
-                if (isTip)
-                {
-                    _logger.LogDebug($"Accepted tip block {BitConverter.ToString(block.Header.BlockId)}");                    
-                    return PeerDataResult.Relay;
-                }
-                else
-                {
-                    _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
-                    var missingBlockTask = Task.Factory.StartNew(() => GetMissingBlocks(null));
-                    return PeerDataResult.Ignore;
-                }
+                                
             }
             finally
             {
                 _blockEvent.Set();                
+            }
+            if (isTip)
+            {
+                _logger.LogDebug($"Accepted tip block {BitConverter.ToString(block.Header.BlockId)}");
+                return PeerDataResult.Relay;
+            }
+            else
+            {
+                _logger.LogDebug($"Accepted block {BitConverter.ToString(block.Header.BlockId)}");
+                var missingBlockTask = Task.Factory.StartNew(() => GetMissingBlocks(null));
+                return PeerDataResult.Ignore;
             }
         }
 
