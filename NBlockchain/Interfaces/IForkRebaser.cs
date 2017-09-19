@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using NBlockchain.Models;
 
 namespace NBlockchain.Interfaces
@@ -6,6 +7,6 @@ namespace NBlockchain.Interfaces
     public interface IForkRebaser
     {
         Task<BlockHeader> FindKnownForkbase(byte[] forkTipId);
-        Task RebaseChain(byte[] divergentId, byte[] targetTipId);
+        Task<ICollection<Block>> RebaseChain(byte[] divergentId, byte[] targetTipId);
     }
 }

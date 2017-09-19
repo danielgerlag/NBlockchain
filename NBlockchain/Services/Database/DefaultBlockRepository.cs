@@ -66,7 +66,7 @@ namespace NBlockchain.Services.Database
             return Task.CompletedTask;
         }
 
-        public Task<bool> HaveBlockMainChain(byte[] blockId)
+        public Task<bool> HavePrimaryBlock(byte[] blockId)
         {            
             var result = MainChain.Exists(x => x.Entity.Header.BlockId == blockId);
             return Task.FromResult(result);
@@ -117,6 +117,12 @@ namespace NBlockchain.Services.Database
             return result;
         }
 
+        public Task DiscardSecondaryBlock(byte[] blockId)
+        {
+            ForkChain.Delete(x => x.Entity.Header.BlockId == blockId);
+            return Task.CompletedTask;
+        }
+
         public Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
         {
             var startTicks = startUtc.Ticks;
@@ -154,28 +160,28 @@ namespace NBlockchain.Services.Database
             return RehydratePersistedBlock(block);
         }
 
-        public async Task<BlockHeader> GetMainChainHeader(uint height)
+        public async Task<BlockHeader> GetPrimaryHeader(uint height)
         {
             //TODO: project result
             var block = MainChain.Find(Query.EQ("Entity.Header.Height", Convert.ToInt64(height))).FirstOrDefault();
             return block?.Entity.Header;
         }
 
-        public async Task<BlockHeader> GetForkHeader(byte[] forkBlockId)
+        public async Task<BlockHeader> GetSecondaryHeader(byte[] forkBlockId)
         {
             //TODO: project result
             var fork = ForkChain.Find(Query.EQ("Entity.Header.BlockId", forkBlockId)).FirstOrDefault();
             return fork?.Entity.Header;
         }
 
-        public async Task AddDetachedBlock(Block block)
+        public async Task AddSecondaryBlock(Block block)
         {
             ForkChain.Insert(new PersistedOrphan(block));
         }
 
         public async Task<BlockHeader> GetDivergentHeader(byte[] forkTipBlockId)
         {
-            var forkHeader = await GetForkHeader(forkTipBlockId);
+            var forkHeader = await GetSecondaryHeader(forkTipBlockId);
             if (forkHeader == null)
                 return null;
 
@@ -185,7 +191,7 @@ namespace NBlockchain.Services.Database
                 if (mainParent != null)
                     return mainParent.Entity.Header;
 
-                forkHeader = await GetForkHeader(forkHeader.PreviousBlock);
+                forkHeader = await GetSecondaryHeader(forkHeader.PreviousBlock);
                 if (forkHeader == null)
                     return null;
             }
@@ -201,11 +207,11 @@ namespace NBlockchain.Services.Database
             var archiveFork = MainChain
                 .Find(x => x.Entity.Header.Height > divergent.Entity.Header.Height)
                 .ToList()
-                .Select(x => RehydratePersistedBlock(x));
+                .Select(RehydratePersistedBlock);
 
             foreach (var block in archiveFork.OrderByDescending(x => x.Header.Height))
             {
-                await AddDetachedBlock(block);
+                await AddSecondaryBlock(block);
                 Instructions.Delete(x => x.BlockId == block.Header.BlockId);
                 MainChain.Delete(x => x.Entity.Header.BlockId == block.Header.BlockId);
             }
@@ -234,7 +240,7 @@ namespace NBlockchain.Services.Database
             return result.OrderBy(x => x.Header.Height).ToList();
         }
 
-        public Task<bool> HaveBlockForkChain(byte[] blockId)
+        public Task<bool> HaveSecondaryBlock(byte[] blockId)
         {
             var result = ForkChain.Exists(x => x.Entity.Header.BlockId == blockId);
             return Task.FromResult(result);

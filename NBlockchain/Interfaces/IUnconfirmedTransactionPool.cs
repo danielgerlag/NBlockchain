@@ -5,7 +5,7 @@ using System.Text;
 
 namespace NBlockchain.Interfaces
 {
-    public interface IUnconfirmedTransactionCache
+    public interface IUnconfirmedTransactionPool
     {
 
         event EventHandler Changed;

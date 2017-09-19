@@ -9,12 +9,12 @@ namespace NBlockchain.Rules
 {
     public class BlockContentThresholdRule : IBlockRule
     {
-        private readonly IUnconfirmedTransactionCache _unconfirmedTransactions;
+        private readonly IUnconfirmedTransactionPool _unconfirmedTransactions;
         private readonly decimal _threshold;
 
         public bool TailRule => true;
 
-        public BlockContentThresholdRule(IUnconfirmedTransactionCache unconfirmedTransactions, decimal threshold)
+        public BlockContentThresholdRule(IUnconfirmedTransactionPool unconfirmedTransactions, decimal threshold)
         {
             _unconfirmedTransactions = unconfirmedTransactions;
             _threshold = threshold;

@@ -68,7 +68,7 @@ namespace NBlockchain.Models
 
         public void UseTcpPeerNetwork(uint port)
         {
-            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>(), sp.GetService<IUnconfirmedTransactionCache>(), sp.GetService<IReceiver>()));
+            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>(), sp.GetService<IUnconfirmedTransactionPool>(), sp.GetService<IReceiver>()));
         }
 
         public void UseDataConnection(string connectionString)
@@ -112,7 +112,7 @@ namespace NBlockchain.Models
 
         public void AddContentThresholdBlockRule(decimal threshold)
         {
-            Services.AddTransient(typeof(IBlockRule), sp => new BlockContentThresholdRule(sp.GetService<IUnconfirmedTransactionCache>(), threshold));
+            Services.AddTransient(typeof(IBlockRule), sp => new BlockContentThresholdRule(sp.GetService<IUnconfirmedTransactionPool>(), threshold));
         }
 
         public void UseMulticastDiscovery(string serviceId, string multicastAddress, int port)
@@ -165,7 +165,7 @@ namespace NBlockchain.Models
 
             //AddDefault<IBlockRepository, InMemoryBlockRepository>(ServiceLifetime.Singleton);
 
-            AddDefault<INodeHost, NodeHost>(ServiceLifetime.Singleton);
+            AddDefault<IBlockchainHost, BlockchainHost>(ServiceLifetime.Singleton);
             AddDefault<IReceiver, Receiver>(ServiceLifetime.Singleton);
             
 
@@ -174,7 +174,7 @@ namespace NBlockchain.Models
             
             AddDefault<IOwnAddressResolver, OwnAddressResolver>(ServiceLifetime.Singleton);
 
-            AddDefault<IUnconfirmedTransactionCache, UnconfirmedTransactionCache>(ServiceLifetime.Singleton);
+            AddDefault<IUnconfirmedTransactionPool, UnconfirmedTransactionPool>(ServiceLifetime.Singleton);
             AddDefault<IExpectedBlockList, ExpectedBlockList>(ServiceLifetime.Singleton);
 
             AddDefault<ITransactionBuilder, TransactionBuilder>(ServiceLifetime.Singleton);

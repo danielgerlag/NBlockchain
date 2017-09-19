@@ -21,40 +21,26 @@ namespace NBlockchain.Services
             _logger = loggerFactory.CreateLogger<ForkRebaser>();
         }
 
-        public async Task RebaseChain(byte[] divergentId, byte[] targetTipId)
+        public async Task<ICollection<Block>> RebaseChain(byte[] divergentId, byte[] targetTipId)
         {
             _logger.LogInformation($"Rebasing chain from {BitConverter.ToString(divergentId)} to {BitConverter.ToString(targetTipId)}");
             var currentTipHeader = await _blockRepository.GetBestBlockHeader();
             await _blockRepository.RewindChain(divergentId);
-            //var chainFork = await _blockRepository.GetFork(targetTipId);
-
-            //var ffwdTask = Task.Factory.StartNew(async () =>
-            //{
-            //    foreach (var forkedBlock in chainFork.OrderBy(x => x.Header.Height))
-            //    {
-            //        try
-            //        {
-            //            await _blockReceiver.RecieveBlock(forkedBlock);
-            //        }
-            //        catch (Exception ex)
-            //        {
-            //            _logger.LogError(ex.Message);
-            //        }
-            //    }
-            //});            
+            var chainFork = await _blockRepository.GetFork(targetTipId);
+            return chainFork.OrderBy(x => x.Header.Height).ToList();
         }
 
 
         public async Task<BlockHeader> FindKnownForkbase(byte[] forkTipId)
         {
             _logger.LogInformation($"Searching for fork base");
-            var header = await _blockRepository.GetForkHeader(forkTipId);
+            var header = await _blockRepository.GetSecondaryHeader(forkTipId);
 
-            var prevHeader = await _blockRepository.GetForkHeader(header.PreviousBlock);
+            var prevHeader = await _blockRepository.GetSecondaryHeader(header.PreviousBlock);
             while (prevHeader != null)
             {
                 header = prevHeader;
-                prevHeader = await _blockRepository.GetForkHeader(prevHeader.PreviousBlock);
+                prevHeader = await _blockRepository.GetSecondaryHeader(prevHeader.PreviousBlock);
             }
             return header;
         }

@@ -30,7 +30,7 @@ namespace NBlockchain.Services.Net
         private readonly IEnumerable<IPeerDiscoveryService> _discoveryServices;
         private readonly ILogger _logger;
         private readonly IOwnAddressResolver _ownAddressResolver;
-        private readonly IUnconfirmedTransactionCache _unconfirmedTransactionCache;
+        private readonly IUnconfirmedTransactionPool _unconfirmedTransactionPool;
 
         private readonly ConcurrentQueue<KnownPeer> _peerRoundRobin = new ConcurrentQueue<KnownPeer>();
         
@@ -51,7 +51,7 @@ namespace NBlockchain.Services.Net
 
         public Guid NodeId { get; private set; }
 
-        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IUnconfirmedTransactionCache unconfirmedTransactionCache, IReceiver reciever)
+        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IUnconfirmedTransactionPool unconfirmedTransactionPool, IReceiver reciever)
         {
             _port = port;
             _reciever = reciever;
@@ -59,7 +59,7 @@ namespace NBlockchain.Services.Net
             _blockRepository = blockRepository;
             _discoveryServices = discoveryServices;
             _ownAddressResolver = ownAddressResolver;
-            _unconfirmedTransactionCache = unconfirmedTransactionCache;
+            _unconfirmedTransactionPool = unconfirmedTransactionPool;
             NodeId = Guid.NewGuid();            
         }
 
@@ -292,7 +292,7 @@ namespace NBlockchain.Services.Net
 
         private void ProcessTxnRequest(PeerConnection peer)
         {
-            var txns = _unconfirmedTransactionCache.Get;
+            var txns = _unconfirmedTransactionPool.Get;
 
             foreach (var txn in txns)
             {

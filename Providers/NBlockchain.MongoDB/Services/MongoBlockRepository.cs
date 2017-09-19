@@ -76,13 +76,13 @@ namespace NBlockchain.MongoDB.Services
             await Task.Yield();
         }
 
-        public Task<bool> HaveBlockMainChain(byte[] blockId)
+        public Task<bool> HavePrimaryBlock(byte[] blockId)
         {
             var result = MainChain.Find(x => x.Header.BlockId == blockId).Any();
             return Task.FromResult(result);
         }
 
-        public Task<bool> HaveBlockForkChain(byte[] blockId)
+        public Task<bool> HaveSecondaryBlock(byte[] blockId)
         {
             var result = ForkChain.Find(x => x.Header.BlockId == blockId).Any();
             return Task.FromResult(result);
@@ -112,6 +112,12 @@ namespace NBlockchain.MongoDB.Services
                 persistedResult = ForkChain.Find(x => x.Header.PreviousBlock == prevBlockId).FirstOrDefault();
 
             return persistedResult == null ? Task.FromResult<Block>(null) : Task.FromResult(persistedResult.ToBlock());
+        }
+
+        public Task DiscardSecondaryBlock(byte[] blockId)
+        {
+            ForkChain.DeleteMany(x => x.Header.BlockId == blockId);
+            return Task.CompletedTask;
         }
 
         public async Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc)
@@ -156,7 +162,7 @@ namespace NBlockchain.MongoDB.Services
             return persistedResult == null ? Task.FromResult<Block>(null) : Task.FromResult(persistedResult.ToBlock());
         }
 
-        public Task<BlockHeader> GetMainChainHeader(uint height)
+        public Task<BlockHeader> GetPrimaryHeader(uint height)
         {
             if (MainChain.Count(x => true) == 0)
                 return Task.FromResult<BlockHeader>(null);
@@ -166,14 +172,14 @@ namespace NBlockchain.MongoDB.Services
             return Task.FromResult(result);
         }
 
-        public async Task AddDetachedBlock(Block block)
+        public async Task AddSecondaryBlock(Block block)
         {
             var persisted = new PersistedBlock(block, _addressEncoder);
             ForkChain.InsertOne(persisted);
             await Task.Yield();
         }
 
-        public Task<BlockHeader> GetForkHeader(byte[] forkBlockId)
+        public Task<BlockHeader> GetSecondaryHeader(byte[] forkBlockId)
         {
             var forktip = ForkChain.AsQueryable().Select(x => x.Header).Where(x => x.BlockId == forkBlockId).FirstOrDefault();
             return Task.FromResult(forktip);
@@ -181,7 +187,7 @@ namespace NBlockchain.MongoDB.Services
                 
         public async Task<BlockHeader> GetDivergentHeader(byte[] forkTipBlockId)
         {
-            var forkHeader = await GetForkHeader(forkTipBlockId);
+            var forkHeader = await GetSecondaryHeader(forkTipBlockId);
             if (forkHeader == null)
                 return null;
 
@@ -191,7 +197,7 @@ namespace NBlockchain.MongoDB.Services
                 if (mainParent != null)
                     return mainParent;
 
-                forkHeader = await GetForkHeader(forkHeader.PreviousBlock);
+                forkHeader = await GetSecondaryHeader(forkHeader.PreviousBlock);
                 if (forkHeader == null)
                     return null;
             }
@@ -210,7 +216,7 @@ namespace NBlockchain.MongoDB.Services
                 .Select(x => x.ToBlock());
 
             foreach (var block in archiveFork)
-                await AddDetachedBlock(block);
+                await AddSecondaryBlock(block);
 
             MainChain.DeleteMany(x => x.Header.Height > divergent.Header.Height);
         }

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace NBlockchain.Services
 {
-    public class UnconfirmedTransactionCache : IUnconfirmedTransactionCache
+    public class UnconfirmedTransactionPool : IUnconfirmedTransactionPool
     {
         private readonly ICollection<Transaction> _list = new List<Transaction>();
         private readonly AutoResetEvent _evt = new AutoResetEvent(true);
