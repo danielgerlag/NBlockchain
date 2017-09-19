@@ -27,8 +27,8 @@ namespace DigitalCurrency
         
         static void Main(string[] args)
         {
-            var serviceProvider = ConfigureForMongoDB("DigitalCurrency", 10500);
-            //var serviceProvider = ConfigureForLiteDb("node.db", 10500);
+            //var serviceProvider = ConfigureForMongoDB("DigitalCurrency", 10500);
+            var serviceProvider = ConfigureForLiteDb("node.db", 10500);
 
             _host = serviceProvider.GetService<INodeHost>();
             _miner = serviceProvider.GetService<IBlockMiner>();
@@ -70,6 +70,8 @@ namespace DigitalCurrency
                 x.UseInstructionRepository<ICustomInstructionRepository, CustomInstructionRepository>();
                 x.UseTcpPeerNetwork(port);
                 x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
+                x.AddPeerDiscovery(sp => new StaticPeerDiscovery(new string[] { "tcp://192.168.0.13:10500" }));
+
                 x.AddInstructionType<TransferInstruction>();
                 x.AddInstructionType<CoinbaseInstruction>();
                 x.AddTransactionRule<BalanceRule>();
