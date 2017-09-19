@@ -16,7 +16,7 @@ namespace DigitalCurrency
 {
     class Program
     {
-        private static INodeHost _host;
+        private static IBlockchainHost _host;
         private static IBlockMiner _miner;
         private static IPeerNetwork _network;
         private static ISignatureService _sigService;
@@ -30,7 +30,7 @@ namespace DigitalCurrency
             //var serviceProvider = ConfigureForMongoDB("DigitalCurrency", 10500);
             var serviceProvider = ConfigureForLiteDb("node.db", 10500);
 
-            _host = serviceProvider.GetService<INodeHost>();
+            _host = serviceProvider.GetService<IBlockchainHost>();
             _miner = serviceProvider.GetService<IBlockMiner>();
             _network = serviceProvider.GetService<IPeerNetwork>();
             _sigService = serviceProvider.GetService<ISignatureService>();

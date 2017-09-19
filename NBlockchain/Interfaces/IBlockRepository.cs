@@ -8,8 +8,8 @@ namespace NBlockchain.Interfaces
     public interface IBlockRepository
     {
         Task AddBlock(Block block);
-        Task<bool> HaveBlockMainChain(byte[] blockId);
-        Task<bool> HaveBlockForkChain(byte[] blockId);
+        Task<bool> HavePrimaryBlock(byte[] blockId);
+        Task<bool> HaveSecondaryBlock(byte[] blockId);
         Task<bool> IsEmpty();
         Task<BlockHeader> GetBestBlockHeader();
         Task<Block> GetNextBlock(byte[] prevBlockId);
@@ -17,17 +17,18 @@ namespace NBlockchain.Interfaces
         Task<BlockHeader> GetBlockHeader(byte[] blockId);
         Task<Block> GetBlock(byte[] blockId);
 
-        Task<BlockHeader> GetMainChainHeader(uint height);
-        Task<BlockHeader> GetForkHeader(byte[] forkBlockId);
+        Task<BlockHeader> GetPrimaryHeader(uint height);
+        Task<BlockHeader> GetSecondaryHeader(byte[] forkBlockId);
 
-        Task AddDetachedBlock(Block block);
+        Task AddSecondaryBlock(Block block);
 
         Task<BlockHeader> GetDivergentHeader(byte[] forkTipBlockId);
                 
         Task RewindChain(byte[] blockId);
 
         Task<ICollection<Block>> GetFork(byte[] forkTipBlockId);
-                
+
+        Task DiscardSecondaryBlock(byte[] blockId);
 
         Task<int> GetAverageBlockTimeInSecs(DateTime startUtc, DateTime endUtc);
         
