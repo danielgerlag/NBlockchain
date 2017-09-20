@@ -236,7 +236,7 @@ namespace NBlockchain.MongoDB.Services
                 if (mainParent != null)
                     break;
 
-                forkBlock = ForkChain.AsQueryable().FirstOrDefault(x => x.Header.BlockId == forkTipBlockId);
+                forkBlock = ForkChain.AsQueryable().FirstOrDefault(x => x.Header.BlockId == forkBlock.Header.PreviousBlock);
                 if (forkBlock == null)
                     break;
             }
