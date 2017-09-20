@@ -22,7 +22,8 @@ namespace NBlockchain.Services.Net
         //TODO: break this class up into smaller pieces
         private const int TargetOutgoingCount = 8;
         private readonly uint _port;
-        private byte[] _serviceId = new byte[] { 0x0, 0x1 };
+        private string _serviceId = "BC";
+        private int _version = 1;
 
         private readonly IReceiver _reciever;
 
@@ -90,12 +91,13 @@ namespace NBlockchain.Services.Net
                     {
                         var client = await _listener.AcceptTcpClientAsync();
                         _logger.LogDebug($"Client connected - {client.Client.RemoteEndPoint}");
-                        var peer = new PeerConnection(_serviceId, NodeId, client);
+                        var peer = new PeerConnection(_serviceId, _version, NodeId, client);
                         AttachEventHandlers(peer);
                         _peerEvent.WaitOne();
                         try
                         {
                             _peerConnections.Add(peer);
+                            peer.Run();
                         }
                         finally
                         {
@@ -324,13 +326,14 @@ namespace NBlockchain.Services.Net
         {
             try
             {
-                var peer = new PeerConnection(_serviceId, NodeId);                
+                var peer = new PeerConnection(_serviceId, _version, NodeId);                
                 await peer.Connect(connStr);
                 AttachEventHandlers(peer);
                 _peerEvent.WaitOne();
                 try
                 {
                     _peerConnections.Add(peer);
+                    peer.Run();
                 }
                 finally
                 {
@@ -487,11 +490,15 @@ namespace NBlockchain.Services.Net
         {
             Task.Factory.StartNew(async () =>
             {
-                var peers = GetActivePeers().Where(x => x.RemoteId != NodeId);
+                var peers = GetActivePeers()
+                    .Where(x => x.RemoteId != NodeId && x.LastContact.HasValue)
+                    .Where(x => x.LastContact > (DateTime.Now.AddMinutes(-20)))
+                    .OrderBy(x => x.RequestCount);
                 //TODO: round robin
                 foreach (var peer in peers)
                 {
                     _logger.LogInformation($"Requesting next block {BitConverter.ToString(blockId)} from peer {peer.RemoteId}");
+                    peer.RequestCount++;
                     peer.Send(Commands.NextBlockRequest, blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));
@@ -506,11 +513,15 @@ namespace NBlockchain.Services.Net
         {
             Task.Factory.StartNew(async () =>
             {
-                var peers = GetActivePeers().Where(x => x.RemoteId != NodeId);
+                var peers = GetActivePeers()
+                    .Where(x => x.RemoteId != NodeId && x.LastContact.HasValue)
+                    .Where(x => x.LastContact > (DateTime.Now.AddMinutes(-20)))
+                    .OrderBy(x => x.RequestCount);
                 //TODO: round robin
                 foreach (var peer in peers)
                 {
                     _logger.LogInformation($"Requesting block {BitConverter.ToString(blockId)} from peer {peer.RemoteId}");
+                    peer.RequestCount++;
                     peer.Send(Commands.BlockRequest, blockId);
 
                     await Task.Delay(TimeSpan.FromSeconds(5));

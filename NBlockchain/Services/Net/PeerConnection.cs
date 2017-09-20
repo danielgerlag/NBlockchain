@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Bson;
 
 namespace NBlockchain.Services.Net
 {
@@ -22,6 +25,10 @@ namespace NBlockchain.Services.Net
         private readonly TcpClient _client;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
         private readonly Guid _localId;
+        private readonly int _localVersion;
+        private int _remoteVersion;
+
+
         private Guid _remoteId = Guid.NewGuid();
         private DateTime? _lastContact;
         private CancellationTokenSource _cancelToken = new CancellationTokenSource();
@@ -39,22 +46,25 @@ namespace NBlockchain.Services.Net
         public bool Outgoing { get; private set; }
         public string ConnectionString { get; private set; }
         public DateTime? LastContact => _lastContact;
+
+        public long RequestCount { get; set; } = 0;
         
-        public PeerConnection(byte[] serviceIdentifier, Guid nodeId)
+        public PeerConnection(string serviceIdentifier, int version, Guid nodeId)
         {
             _client = new TcpClient();
             _localId = nodeId;
-            _serviceIdentifier = serviceIdentifier;
+            _localVersion = version;
+            _serviceIdentifier = Encoding.UTF8.GetBytes(serviceIdentifier);
             Outgoing = true;
         }
 
-        public PeerConnection(byte[] serviceIdentifier, Guid nodeId, TcpClient client)
+        public PeerConnection(string serviceIdentifier, int version, Guid nodeId, TcpClient client)
         {
             _client = client;
             _localId = nodeId;
-            _serviceIdentifier = serviceIdentifier;
-            Outgoing = false;            
-            Task.Factory.StartNew(Poll);
+            _localVersion = version;
+            _serviceIdentifier = Encoding.UTF8.GetBytes(serviceIdentifier);
+            Outgoing = false;
         }
 
         public async Task Connect(string connectionString)
@@ -65,8 +75,12 @@ namespace NBlockchain.Services.Net
                 throw new InvalidOperationException("Only tcp connections are possible");
                         
             await _client.ConnectAsync(uri.Host, uri.Port);
-            var pollTask = Task.Factory.StartNew(Poll);
-            Send(NetworkQualifier, IdentifyCommand, _localId.ToByteArray());
+            SendIdentify();
+        }
+
+        public void Run()
+        {
+            Task.Factory.StartNew(Poll);
         }
 
         public void Send(byte command, byte[] data)
@@ -176,7 +190,7 @@ namespace NBlockchain.Services.Net
             _cancelToken = new CancellationTokenSource();
             var headerLength = _serviceIdentifier.Length + 6;
             var timer = new Timer(Maintain, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(120));
-            Send(NetworkQualifier, IdentifyCommand, _localId.ToByteArray());
+            SendIdentify();
             while ((_client.Connected) && (!_cancelToken.IsCancellationRequested))
             {
                 try
@@ -251,12 +265,24 @@ namespace NBlockchain.Services.Net
             _pollExited = true;
         }
 
+        private void SendIdentify()
+        {
+            var data = new Handshake()
+            {
+                NodeId = _localId,
+                Version = _localVersion
+            };
+            Send(NetworkQualifier, IdentifyCommand, SerializeObject(data));
+        }
+
         private void ProcessNetworkCommand(byte command, byte[] data)
         {
             switch (command)
             {
                 case IdentifyCommand:
-                    _remoteId = new Guid(data);
+                    var handshake = DeserializeObject<Handshake>(data);
+                    _remoteId = handshake.NodeId;
+                    _remoteVersion = handshake.Version;
                     OnIdentify?.Invoke(this);
                     break;
                 case PingCommand:
@@ -271,6 +297,33 @@ namespace NBlockchain.Services.Net
                 actualRecv += _client.Client.Receive(msgBuffer, actualRecv, (msgBuffer.Length - actualRecv), SocketFlags.None);
 
             return actualRecv;
+        }
+
+        private static byte[] SerializeObject(object data)
+        {
+            using (var bw = new MemoryStream())
+            {
+                var writer = new BsonDataWriter(bw);
+                var serializer = new JsonSerializer();
+                serializer.TypeNameHandling = TypeNameHandling.Objects;
+                serializer.Serialize(writer, data);
+                writer.Close();
+                bw.TryGetBuffer(out var result);
+                return result.Array;
+            }
+        }
+
+        private static T DeserializeObject<T>(byte[] bson)
+        {
+            using (var ms = new MemoryStream(bson))
+            {
+                var bdr = new BsonDataReader(ms);
+                var serializer = new JsonSerializer();
+                serializer.TypeNameHandling = TypeNameHandling.Objects;
+                var result = serializer.Deserialize<T>(bdr);
+                bdr.Close();
+                return result;
+            }
         }
     }
 
