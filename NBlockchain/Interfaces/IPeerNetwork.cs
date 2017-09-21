@@ -16,7 +16,9 @@ namespace NBlockchain.Interfaces
 
         void RequestNextBlock(byte[] blockId);
 
-        void RequestBlock(byte[] blockId);                
+        void RequestBlock(byte[] blockId);
+
+        void RequestBlockByHeight(uint height);
 
         Task DiscoverPeers();
 

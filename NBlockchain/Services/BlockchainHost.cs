@@ -246,9 +246,9 @@ namespace NBlockchain.Services
         {
             _logger.LogInformation("GetMissingBlocks");
 
-            var prevHeader = await _blockRepository.GetBestBlockHeader();
+            var bestHeader = await _blockRepository.GetBestBlockHeader();
 
-            if (prevHeader == null)
+            if (bestHeader == null)
             {
                 _logger.LogInformation("Requesting head block");
                 //_expectedBlockList.ExpectNext(Block.HeadKey);
@@ -258,12 +258,13 @@ namespace NBlockchain.Services
             
             //if ((DateTime.UtcNow.Ticks - prevHeader.Timestamp) > _parameters.BlockTime.Ticks)
             {
-                _logger.LogInformation($"Requesting missing block after {BitConverter.ToString(prevHeader.BlockId)}");
+                _logger.LogInformation($"Requesting missing block after {BitConverter.ToString(bestHeader.BlockId)}");
                 //_expectedBlockList.ExpectNext(prevHeader.BlockId);
-                var cached = await _blockRepository.GetNextBlock(prevHeader.BlockId);
+                var cached = await _blockRepository.GetNextBlock(bestHeader.BlockId);
                 if (cached == null)
                 {
-                    _peerNetwork.RequestNextBlock(prevHeader.BlockId);
+                    //_peerNetwork.RequestNextBlock(bestHeader.BlockId);
+                    _peerNetwork.RequestBlockByHeight(bestHeader.Height + 1);
                 }
                 else
                 {

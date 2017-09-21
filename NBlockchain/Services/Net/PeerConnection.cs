@@ -48,6 +48,8 @@ namespace NBlockchain.Services.Net
         public DateTime? LastContact => _lastContact;
 
         public long RequestCount { get; set; } = 0;
+        public int DemeritPoints { get; set; } = 0;
+        public TimeSpan QuietTimeout { get; set; } = TimeSpan.FromMinutes(10);
         
         public PeerConnection(string serviceIdentifier, int version, Guid nodeId)
         {
@@ -172,7 +174,7 @@ namespace NBlockchain.Services.Net
         {
             if (_client.Connected)
             {
-                if (_lastContact < (DateTime.Now.AddMinutes(-10)))
+                if (_lastContact < (DateTime.Now.Subtract(QuietTimeout)))
                 {
                     OnUnresponsive?.Invoke(this);
                     Disconnect();
@@ -189,8 +191,9 @@ namespace NBlockchain.Services.Net
             _pollExited = false;
             _cancelToken = new CancellationTokenSource();
             var headerLength = _serviceIdentifier.Length + 6;
-            var timer = new Timer(Maintain, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(120));
+            var timer = new Timer(Maintain, null, TimeSpan.FromSeconds(120), TimeSpan.FromSeconds(120));
             SendIdentify();
+            Send(NetworkQualifier, PingCommand, new byte[0]);
             while ((_client.Connected) && (!_cancelToken.IsCancellationRequested))
             {
                 try

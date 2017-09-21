@@ -34,7 +34,7 @@ namespace NBlockchain.Services.Net
         private readonly IUnconfirmedTransactionPool _unconfirmedTransactionPool;
 
         private readonly ConcurrentQueue<KnownPeer> _peerRoundRobin = new ConcurrentQueue<KnownPeer>();
-        
+
         private readonly List<PeerConnection> _peerConnections = new List<PeerConnection>();
         private CancellationTokenSource _cancelTokenSource;
         private TcpListener _listener;
@@ -61,7 +61,7 @@ namespace NBlockchain.Services.Net
             _discoveryServices = discoveryServices;
             _ownAddressResolver = ownAddressResolver;
             _unconfirmedTransactionPool = unconfirmedTransactionPool;
-            NodeId = Guid.NewGuid();            
+            NodeId = Guid.NewGuid();
         }
 
         private ICollection<PeerConnection> GetActivePeers()
@@ -110,13 +110,13 @@ namespace NBlockchain.Services.Net
                     _logger.LogError($"Error listening - {ex.Message}");
                 }
             });
-            
+
             DiscoverOwnConnectionStrings();
             AdvertiseToPeers();
 
             _discoveryTimer = new Timer(async (state) =>
             {
-                await DiscoverPeers();                
+                await DiscoverPeers();
             }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30));
 
             _sharePeersTimer = new Timer(SharePeers, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
@@ -211,6 +211,9 @@ namespace NBlockchain.Services.Net
                     case Commands.NextBlockRequest:
                         await ProcessBlockRequest(data, true, sender);
                         break;
+                    case Commands.BlockHeightRequest:
+                        await ProcessBlockRequest(BitConverter.ToUInt32(data, 0), sender);
+                        break;
                     case Commands.PeerShare:
                         if (IsSharablePeer(Encoding.UTF8.GetString(data)))
                             AddPeer(new KnownPeer() { ConnectionString = Encoding.UTF8.GetString(data) });
@@ -243,7 +246,7 @@ namespace NBlockchain.Services.Net
             if (block != null)
             {
                 _logger.LogInformation($"Responding to block request {next} {BitConverter.ToString(blockId)}");
-                var data = SerializeObject(block);                
+                var data = SerializeObject(block);
                 SendBlock(peer, data, false);
             }
             else
@@ -252,8 +255,25 @@ namespace NBlockchain.Services.Net
             }
         }
 
+        private async Task ProcessBlockRequest(uint height, PeerConnection peer)
+        {
+            var header = await _blockRepository.GetPrimaryHeader(height);
+
+            if (header != null)
+            {
+                _logger.LogInformation($"Responding to block request {height} with {BitConverter.ToString(header.BlockId)}");
+                var block = await _blockRepository.GetBlock(header.BlockId);
+                var data = SerializeObject(block);
+                SendBlock(peer, data, false);
+            }
+            else
+            {
+                _logger.LogInformation($"Unable to respond to block request {height}");
+            }
+        }
+
         private async Task ProcessBlock(byte[] data, Guid originId, bool tip)
-        {            
+        {
             var block = DeserializeObject<Block>(data);
 
             _logger.LogDebug($"Recv block {BitConverter.ToString(block.Header.BlockId)} from {originId}");
@@ -272,6 +292,13 @@ namespace NBlockchain.Services.Net
                     });
                 });
             }
+
+            if (result == PeerDataResult.Demerit)
+            {
+                PeerConnection peer = GetActivePeers().FirstOrDefault(x => x.RemoteId == originId);
+                if (peer != null)
+                    peer.DemeritPoints++;
+            }
         }
 
         private async Task ProcessTransaction(byte[] data, Guid originId)
@@ -289,6 +316,13 @@ namespace NBlockchain.Services.Net
                         SendTxn(peer, data);
                     });
                 });
+            }
+
+            if (result == PeerDataResult.Demerit)
+            {
+                PeerConnection peer = GetActivePeers().FirstOrDefault(x => x.RemoteId == originId);
+                if (peer != null)
+                    peer.DemeritPoints++;
             }
         }
 
@@ -321,12 +355,12 @@ namespace NBlockchain.Services.Net
                 _peerEvent.Set();
             }
         }
-        
+
         private async Task OnboardPeer(string connStr)
         {
             try
             {
-                var peer = new PeerConnection(_serviceId, _version, NodeId);                
+                var peer = new PeerConnection(_serviceId, _version, NodeId);
                 await peer.Connect(connStr);
                 AttachEventHandlers(peer);
                 _peerEvent.WaitOne();
@@ -390,7 +424,7 @@ namespace NBlockchain.Services.Net
             foreach (var ds in _discoveryServices)
                 await ds.SharePeers(_peerRoundRobin.ToList());
         }
-                
+
         private async Task ConnectOut()
         {
             var activePeers = GetActivePeers();
@@ -433,7 +467,7 @@ namespace NBlockchain.Services.Net
                 _connectOutEvent.Set();
             }
         }
-        
+
         public void BroadcastTail(Block block)
         {
             var data = SerializeObject(block);
@@ -463,7 +497,7 @@ namespace NBlockchain.Services.Net
         public void BroadcastTransaction(Transaction transaction)
         {
             var data = SerializeObject(transaction);
-            
+
             Task.Factory.StartNew(() =>
             {
                 var peers = GetActivePeers().Where(x => x.RemoteId != NodeId);
@@ -488,29 +522,39 @@ namespace NBlockchain.Services.Net
 
         public void RequestNextBlock(byte[] blockId)
         {
-            Task.Factory.StartNew(async () =>
+            LoadBalancedRequest((peer) =>
             {
-                var peers = GetActivePeers()
-                    .Where(x => x.RemoteId != NodeId && x.LastContact.HasValue)
-                    .Where(x => x.LastContact > (DateTime.Now.AddMinutes(-20)))
-                    .OrderBy(x => x.RequestCount);
-                //TODO: round robin
-                foreach (var peer in peers)
-                {
-                    _logger.LogInformation($"Requesting next block {BitConverter.ToString(blockId)} from peer {peer.RemoteId}");
-                    peer.RequestCount++;
-                    peer.Send(Commands.NextBlockRequest, blockId);
-
-                    await Task.Delay(TimeSpan.FromSeconds(5));
-
-                    if ((await _blockRepository.GetNextBlock(blockId)) != null)
-                        return;
-                }
-            });            
+                _logger.LogInformation($"Requesting next block {BitConverter.ToString(blockId)} from peer {peer.RemoteId}");
+                peer.Send(Commands.NextBlockRequest, blockId);
+                return Task.CompletedTask;
+            },
+            async () => (await _blockRepository.GetBlockHeader(blockId)) != null);
         }
 
         public void RequestBlock(byte[] blockId)
         {
+            LoadBalancedRequest((peer) =>
+            {
+                _logger.LogInformation($"Requesting block {BitConverter.ToString(blockId)} from peer {peer.RemoteId}");
+                peer.Send(Commands.BlockRequest, blockId);
+                return Task.CompletedTask;
+            },
+            async () => (await _blockRepository.GetBlockHeader(blockId)) != null);
+        }
+
+        public void RequestBlockByHeight(uint height)
+        {
+            LoadBalancedRequest((peer) =>
+            {
+                _logger.LogInformation($"Requesting block {height} from peer {peer.RemoteId}");
+                peer.Send(Commands.BlockHeightRequest, BitConverter.GetBytes(height));
+                return Task.CompletedTask;
+            },
+            async () => (await _blockRepository.GetPrimaryHeader(height)) != null);
+        }
+
+        public void LoadBalancedRequest(Func<PeerConnection, Task> requestAction, Func<Task<bool>> resolveAction)
+        {
             Task.Factory.StartNew(async () =>
             {
                 var peers = GetActivePeers()
@@ -520,27 +564,23 @@ namespace NBlockchain.Services.Net
                 //TODO: round robin
                 foreach (var peer in peers)
                 {
-                    _logger.LogInformation($"Requesting block {BitConverter.ToString(blockId)} from peer {peer.RemoteId}");
                     peer.RequestCount++;
-                    peer.Send(Commands.BlockRequest, blockId);
-
+                    await requestAction(peer);
                     await Task.Delay(TimeSpan.FromSeconds(5));
-
-                    if ((await _blockRepository.GetBlockHeader(blockId)) != null)
+                    if (await resolveAction())
                         return;
                 }
             });
         }
-
         public void Dispose()
         {
-            
-        }                
+
+        }
 
         private void AdvertiseToPeers()
         {
             foreach (var ds in _discoveryServices)
-                Task.Factory.StartNew(() => 
+                Task.Factory.StartNew(() =>
                 {
                     try
                     {
@@ -624,7 +664,7 @@ namespace NBlockchain.Services.Net
                     return false;
             }
         }
-        
+
         public ICollection<ConnectedPeer> GetPeersIn()
         {
             return GetActivePeers()
@@ -640,7 +680,7 @@ namespace NBlockchain.Services.Net
                 .Select(x => new ConnectedPeer(x.RemoteId, x.RemoteEndPoint?.ToString()))
                 .ToList();
         }
-        
+
     }
 
     internal class Commands
@@ -650,7 +690,8 @@ namespace NBlockchain.Services.Net
         public const byte Txn = 2;
         public const byte BlockRequest = 3;
         public const byte NextBlockRequest = 4;
-        public const byte PeerShare = 5;
-        public const byte TxnRequest = 6;
-    }   
+        public const byte BlockHeightRequest = 5;
+        public const byte PeerShare = 6;
+        public const byte TxnRequest = 7;
+    }
 }
