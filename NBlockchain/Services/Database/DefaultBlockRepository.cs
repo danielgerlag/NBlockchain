@@ -232,7 +232,7 @@ namespace NBlockchain.Services.Database
                 if (mainParent != null)
                     break;
 
-                forkBlock = ForkChain.Find(x => x.Entity.Header.BlockId == forkTipBlockId).FirstOrDefault();
+                forkBlock = ForkChain.Find(x => x.Entity.Header.BlockId == forkBlock.Entity.Header.PreviousBlock).FirstOrDefault();
                 if (forkBlock == null)
                     break;
             }
