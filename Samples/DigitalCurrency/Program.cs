@@ -27,8 +27,8 @@ namespace DigitalCurrency
         
         static void Main(string[] args)
         {
-            //var serviceProvider = ConfigureForMongoDB("DigitalCurrency", 10500);
-            var serviceProvider = ConfigureForLiteDb("node.db", 10500);
+            var serviceProvider = ConfigureForMongoDB("DigitalCurrency", 10500);
+            //var serviceProvider = ConfigureForLiteDb("node.db", 10500);
 
             _host = serviceProvider.GetService<IBlockchainHost>();
             _miner = serviceProvider.GetService<IBlockMiner>();

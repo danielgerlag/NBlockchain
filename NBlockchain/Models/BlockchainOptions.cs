@@ -37,10 +37,10 @@ namespace NBlockchain.Models
             Services.AddTransient(typeof(IHasher), typeof(T));
         }
 
-        public void UseBlockNotary<T>()
-            where T : IBlockNotary
+        public void UseConsensusMethod<T>()
+            where T : IConsensusMethod
         {
-            Services.AddTransient(typeof(IBlockNotary), typeof(T));
+            Services.AddTransient(typeof(IConsensusMethod), typeof(T));
         }
 
         public void UseSignatureService<T>()
@@ -151,7 +151,7 @@ namespace NBlockchain.Models
             AddDefault<ITransactionKeyResolver, TransactionKeyResolver>(ServiceLifetime.Transient);
             AddDefault<ISignatureService, DefaultSignatureService>(ServiceLifetime.Transient);
             AddDefault<IMerkleTreeBuilder, MerkleTreeBuilder>(ServiceLifetime.Transient);
-            AddDefault<IBlockNotary, ProofOfWorkBlockNotary>(ServiceLifetime.Transient);
+            AddDefault<IConsensusMethod, ProofOfWorkConsensus>(ServiceLifetime.Transient);
             AddDefault<IAddressEncoder, AddressEncoder>(ServiceLifetime.Transient);
             AddDefault<IBlockMiner, BlockMiner>(ServiceLifetime.Singleton);
             AddDefault<IHashTester, HashTester>(ServiceLifetime.Transient);

@@ -14,6 +14,9 @@ namespace DigitalCurrency.Rules
     {
         public int Validate(Transaction transaction, ICollection<Transaction> siblings)
         {
+            if (transaction.Instructions.OfType<CoinbaseInstruction>().Count() == 0)
+                return 0;
+
             var coinbaseTotal = transaction.Instructions.OfType<CoinbaseInstruction>().Sum(x => x.Amount);
 
             if (coinbaseTotal != -50)

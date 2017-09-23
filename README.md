@@ -18,7 +18,7 @@ Beyond this, it is meant to be highly customizable, you can switch out the defau
  * Signing
  * Hashing algorithm
  * Block verification
- * Block notary (eg. proof of work, etc...)
+ * Block consensus method (eg. proof of work, etc...)
 
 ## Installation
 
@@ -35,7 +35,7 @@ dotnet add package NBlockchain --version 0.1.0-alpha
  * [Digital Currency](Samples/DigitalCurrency)
 
 ## Local database stores
- * In memory (mostly for testing & demo purposes)
+ * LiteDB (Default built-in)
  * [MongoDB](Providers/NBlockchain.MongoDB)
 
 ## Networking implementations
@@ -47,8 +47,15 @@ dotnet add package NBlockchain --version 0.1.0-alpha
  * Multicast (for finding peers on the local network)
  * More to come....
 
-## Outstanding items for v1
- * Chain fork detection and resolution
+## Key features
+* Automatic chain fork detection and resolution
+* Open, flexible transaction schema
+* Customizable transaction level rules
+* Customizable block level rules
+* Peer discovery
+* Proof of work management
+
+## Outstanding items for v1 
  * NAT traversal
  * More peer discovery options
  * Integration tests

@@ -19,7 +19,7 @@ namespace NBlockchain.Services
         private readonly ITransactionKeyResolver _transactionKeyResolver;
         private readonly IMerkleTreeBuilder _merkleTreeBuilder;        
         private readonly IBlockbaseTransactionBuilder _blockbaseBuilder;
-        private readonly IBlockNotary _blockNotary;
+        private readonly IConsensusMethod _consensusMethod;
         private readonly ILogger _logger;
         private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
         private readonly IUnconfirmedTransactionPool _unconfirmedTransactionPool;
@@ -36,13 +36,13 @@ namespace NBlockchain.Services
         private CancellationTokenSource _blockCancelToken;
                 
 
-        public BlockMiner(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IBlockNotary blockNotary, IUnconfirmedTransactionPool unconfirmedTransactionPool, IBlockRepository blockRepository, IReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
+        public BlockMiner(ITransactionKeyResolver transactionKeyResolver, IMerkleTreeBuilder merkleTreeBuilder, INetworkParameters networkParameters, IBlockbaseTransactionBuilder blockbaseBuilder, IPeerNetwork peerNetwork, IConsensusMethod consensusMethod, IUnconfirmedTransactionPool unconfirmedTransactionPool, IBlockRepository blockRepository, IReceiver blockReciever, IDifficultyCalculator difficultyCalculator, ILoggerFactory loggerFactory)
         {
             _networkParameters = networkParameters;
             _peerNetwork= peerNetwork;
             _blockbaseBuilder = blockbaseBuilder;
             _blockReciever = blockReciever;
-            _blockNotary = blockNotary;
+            _consensusMethod = consensusMethod;
             _difficultyCalculator = difficultyCalculator;
             _transactionKeyResolver = transactionKeyResolver;
             _merkleTreeBuilder = merkleTreeBuilder;
@@ -139,8 +139,8 @@ namespace NBlockchain.Services
                 }
             };
 
-            _logger.LogDebug($"Notarizing block {height}");
-            await _blockNotary.ConfirmBlock(result, cancellationToken);
+            _logger.LogDebug($"Building consensus for block {height}");
+            await _consensusMethod.BuildConsensus(result, cancellationToken);
 
             if (cancellationToken.IsCancellationRequested)
             {

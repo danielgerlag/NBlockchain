@@ -9,21 +9,26 @@ using NBlockchain.Models;
 
 namespace NBlockchain.Services
 {
-    public class ProofOfWorkBlockNotary : IBlockNotary
+    public class ProofOfWorkConsensus: IConsensusMethod
     {
         private readonly IHasher _hasher;
         private readonly INetworkParameters _networkParameters;
         private readonly IHashTester _hashTester;
         private readonly AutoResetEvent _lock = new AutoResetEvent(true);
 
-        public ProofOfWorkBlockNotary(IHasher hasher, INetworkParameters networkParameters, IHashTester hashTester)
+        public ProofOfWorkConsensus(IHasher hasher, INetworkParameters networkParameters, IHashTester hashTester)
         {
             _hasher = hasher;
             _networkParameters = networkParameters;
             _hashTester = hashTester;
         }
 
-        public async Task ConfirmBlock(Block block, CancellationToken cancellationToken)
+        public bool VerifyConsensus(Block block)
+        {
+            return _hashTester.TestHash(block.Header.BlockId, block.Header.Difficulty);
+        }
+
+        public async Task BuildConsensus(Block block, CancellationToken cancellationToken)
         {
             long counter = 0;
             var cancellationTokenSource = new CancellationTokenSource();

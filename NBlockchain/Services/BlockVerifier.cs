@@ -16,12 +16,12 @@ namespace NBlockchain.Services
         private readonly IEnumerable<IBlockRule> _blockRules;
         private readonly IInstructionRepository _instructionRepository;
         private readonly ISignatureService _signatureService;
-        private readonly IHashTester _hashTester;
+        private readonly IConsensusMethod _consensusMethod;
         private readonly IHasher _hasher;
         private readonly IMerkleTreeBuilder _merkleTreeBuilder;
         private readonly ITransactionKeyResolver _transactionKeyResolver;
 
-        public BlockVerifier(INetworkParameters parameters, ISignatureService signatureService, IEnumerable<ITransactionRule> txnRules, IEnumerable<IBlockRule> blockRules, IEnumerable<ValidInstructionType> validTxnTypes, IMerkleTreeBuilder merkleTreeBuilder, ITransactionKeyResolver transactionKeyResolver, IHashTester hashTester, IHasher hasher, IInstructionRepository instructionRepository)
+        public BlockVerifier(INetworkParameters parameters, ISignatureService signatureService, IEnumerable<ITransactionRule> txnRules, IEnumerable<IBlockRule> blockRules, IEnumerable<ValidInstructionType> validTxnTypes, IMerkleTreeBuilder merkleTreeBuilder, ITransactionKeyResolver transactionKeyResolver, IConsensusMethod consensusMethod, IHasher hasher, IInstructionRepository instructionRepository)
         {
             _parameters = parameters;
             _signatureService = signatureService;
@@ -29,14 +29,14 @@ namespace NBlockchain.Services
             _blockRules = blockRules;
             _merkleTreeBuilder = merkleTreeBuilder;
             _transactionKeyResolver = transactionKeyResolver;
-            _hashTester = hashTester;
+            _consensusMethod = consensusMethod;
             _hasher = hasher;
             _instructionRepository = instructionRepository;
         }
 
         public async Task<bool> Verify(Block block)
         {
-            if (!_hashTester.TestHash(block.Header.BlockId, block.Header.Difficulty))
+            if (!_consensusMethod.VerifyConsensus(block))
                 return false;
 
             var seed = block.Header.CombineHashableElementsWithNonce(block.Header.Nonce);
@@ -85,7 +85,14 @@ namespace NBlockchain.Services
             if (!expectedId.SequenceEqual(transaction.TransactionId))
                 return -2;
 
-            return _txnRules.Aggregate(0, (current, validator) => current & validator.Validate(transaction, siblings));
+            foreach (var txnRule in _txnRules)
+            {
+                var txnResult = txnRule.Validate(transaction, siblings);
+                if (txnResult != 0)
+                    return txnResult;
+            }
+
+            return 0;
         }
 
 
