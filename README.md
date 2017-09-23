@@ -55,6 +55,9 @@ dotnet add package NBlockchain --version 0.1.0-alpha
 * Peer discovery
 * Proof of work management
 
+## Documentation
+https://github.com/danielgerlag/NBlockchain/tree/master/doc
+
 ## Outstanding items for v1 
  * NAT traversal
  * More peer discovery options
