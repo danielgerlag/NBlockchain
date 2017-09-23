@@ -26,6 +26,10 @@ namespace NBlockchain.Services.Net
         
 
 #pragma warning disable CS1998
+        public void RequestBlockByHeight(uint height)
+        {
+            throw new NotImplementedException();
+        }
         public async Task DiscoverPeers()
         {
         }
