@@ -1,5 +1,7 @@
 # NBlockchain
 
+**This documentation is still a work in progress!!!**
+
 NBlockchain is a .NET standard library for building blockchain applications.
 
 ## Block content
