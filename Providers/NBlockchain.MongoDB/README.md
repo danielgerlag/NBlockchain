@@ -4,11 +4,11 @@
 
 Using Nuget package console
 ```
-PM> Install-Package NBlockchain.MongoDB -Version 0.1.0-alpha
+PM> Install-Package NBlockchain.MongoDB -Version 0.5.0-alpha
 ```
 Using .NET CLI
 ```
-dotnet add package NBlockchain.MongoDB --version 0.1.0-alpha
+dotnet add package NBlockchain.MongoDB --version 0.5.0-alpha
 ```
 
 ## Usage
