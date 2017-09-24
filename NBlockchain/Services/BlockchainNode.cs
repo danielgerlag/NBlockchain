@@ -16,11 +16,9 @@ namespace NBlockchain.Services
         private readonly INetworkParameters _parameters;
         private readonly IBlockRepository _blockRepository;
         private readonly IBlockVerifier _blockVerifier;        
-        private readonly ILogger _logger;
-        
+        private readonly ILogger _logger;        
         private readonly IForkRebaser _forkRebaser;
-        private readonly IReceiver _receiver;
-        //private readonly IExpectedBlockList _expectedBlockList;
+        private readonly IReceiver _receiver;        
         private readonly IPeerNetwork _peerNetwork;
         private readonly AutoResetEvent _blockEvent = new AutoResetEvent(true);
         private readonly IUnconfirmedTransactionPool _unconfirmedTransactionPool;
@@ -94,7 +92,7 @@ namespace NBlockchain.Services
             if (!await _blockVerifier.VerifyBlockRules(block, true))
             {
                 _logger.LogWarning($"Block rules failed for {BitConverter.ToString(block.Header.BlockId)}");
-                return PeerDataResult.Ignore;
+                return PeerDataResult.Demerit;
             }
 
             var prevHeader = await _blockRepository.GetBlockHeader(block.Header.PreviousBlock);
