@@ -228,7 +228,7 @@ namespace NBlockchain.Tests.Services
         {
             //arrange
             var block = BuildBlock();
-            Given_Verification_Passes(block);
+            GivenVerificationPasses(block);
 
             A.CallTo(() => _blockRepository.GetBlockHeader(block.Header.PreviousBlock))
                 .Returns(Task.FromResult<BlockHeader>(null));
@@ -251,6 +251,218 @@ namespace NBlockchain.Tests.Services
                 .MustNotHaveHappened();
         }
 
+        [Fact]
+        public async void should_verify_transactions_when_block_is_tip()
+        {
+            //arrange
+            var block = BuildBlock();
+            GivenVerificationPasses(block);
+            GivenBlockIsNextTip(block, block.Header.Height - 1, block.Header.Timestamp - 1, block.Header.Difficulty);
+
+            A.CallTo(() => _blockVerifier.VerifyTransactions(block))
+                .Returns(false);
+
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _blockVerifier.VerifyTransactions(block))
+                .MustHaveHappened();
+
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustNotHaveHappened();
+
+            result.Should().Be(PeerDataResult.Demerit);
+        }
+
+        [Fact]
+        public async void should_ignore_block_with_unexpected_height()
+        {
+            //arrange
+            var block = BuildBlock();
+            GivenVerificationPasses(block);
+            GivenBlockIsNextTip(block, block.Header.Height, block.Header.Timestamp - 1, block.Header.Difficulty);
+            
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustNotHaveHappened();
+
+            result.Should().Be(PeerDataResult.Ignore);
+        }
+
+        [Fact]
+        public async void should_ignore_block_with_unexpected_timestamp()
+        {
+            //arrange
+            var block = BuildBlock();
+            GivenVerificationPasses(block);
+            GivenBlockIsNextTip(block, block.Header.Height - 1, block.Header.Timestamp + 1, block.Header.Difficulty);
+
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustNotHaveHappened();
+
+            result.Should().Be(PeerDataResult.Ignore);
+        }
+
+        [Fact]
+        public async void should_ignore_block_with_unexpected_difficulty()
+        {
+            //arrange
+            var block = BuildBlock();
+            GivenVerificationPasses(block);
+            GivenBlockIsNextTip(block, block.Header.Height - 1, block.Header.Timestamp - 1, block.Header.Difficulty - 1);
+
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustNotHaveHappened();
+
+            result.Should().Be(PeerDataResult.Ignore);
+        }
+
+        [Fact]
+        public async void should_not_verify_transaction_rules_on_fork_block()
+        {
+            //arrange
+            var block = BuildBlock();
+            GivenVerificationPasses(block);
+            GivenBlockIsFork(block, block.Header.Height - 1, block.Header.Timestamp - 1, block.Header.Difficulty);
+
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _blockVerifier.VerifyTransactions(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustNotHaveHappened();
+        }
+
+        [Fact]
+        public async void should_save_block_in_orphan_pool_when_no_parent_in_mainchain()
+        {
+            //arrange
+            var block = BuildBlock();
+            GivenVerificationPasses(block);
+            GivenBlockIsFork(block, block.Header.Height - 1, block.Header.Timestamp - 1, block.Header.Difficulty);
+
+            A.CallTo(() => _blockRepository.HaveSecondaryBlock(block.Header.BlockId))
+                .Returns(false);
+
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _blockRepository.AddSecondaryBlock(block))
+                .MustHaveHappened();
+
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustNotHaveHappened();
+        }
+
+        [Fact]
+        public async void should_rebase_chain_when_path_to_better_tip_exists()
+        {
+            //arrange
+            var block = BuildBlock();
+            var divergentHeader = new BlockHeader() { BlockId = new byte[] { 0xA } };
+            GivenVerificationPasses(block);
+            GivenBlockIsFork(block, block.Header.Height - 1, block.Header.Timestamp - 1, block.Header.Difficulty);
+
+            A.CallTo(() => _blockRepository.GetDivergentHeader(block.Header.BlockId))
+                .Returns(divergentHeader);
+
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _forkRebaser.RebaseChain(divergentHeader.BlockId, block.Header.BlockId))
+                .MustHaveHappened();
+
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustNotHaveHappened();
+        }
+
+        [Fact]
+        public async void should_not_rebase_chain_when_no_path_to_better_tip_exists()
+        {
+            //arrange
+            var block = BuildBlock();            
+            GivenVerificationPasses(block);
+            GivenBlockIsFork(block, block.Header.Height - 1, block.Header.Timestamp - 1, block.Header.Difficulty);
+
+            A.CallTo(() => _blockRepository.GetDivergentHeader(block.Header.BlockId))
+                .Returns(Task.FromResult<BlockHeader>(null));
+
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _forkRebaser.RebaseChain(A<byte[]>.Ignored, A<byte[]>.Ignored))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustNotHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustNotHaveHappened();
+        }
+
+        [Fact]
+        public async void should_add_block_if_valid()
+        {
+            //arrange
+            var block = BuildBlock();
+            GivenVerificationPasses(block);
+            GivenBlockIsNextTip(block, block.Header.Height - 1, block.Header.Timestamp - 1, block.Header.Difficulty);
+
+            A.CallTo(() => _blockVerifier.VerifyTransactions(block))
+                .Returns(true);
+
+            //act
+            var result = await _subject.RecieveBlock(block);
+
+            //assert
+            A.CallTo(() => _blockRepository.AddBlock(block))
+                .MustHaveHappened();
+
+            A.CallTo(() => _unconfirmedTransactionPool.Remove(block.Transactions))
+                .MustHaveHappened();
+
+            result.Should().Be(PeerDataResult.Relay);
+        }
+
         #endregion
 
         #region Setup Helpers
@@ -265,11 +477,12 @@ namespace NBlockchain.Tests.Services
             var result = new Block();
             result.Header.BlockId = blockId;
             result.Header.PreviousBlock = previousBlock;
+            result.Header.Height = 100;
 
             return result;
         }
 
-        private void Given_Verification_Passes(Block block)
+        private void GivenVerificationPasses(Block block)
         {
             A.CallTo(() => _blockRepository.HavePrimaryBlock(block.Header.BlockId))
                 .Returns(false);
@@ -280,8 +493,84 @@ namespace NBlockchain.Tests.Services
             A.CallTo(() => _blockVerifier.VerifyBlockRules(block, A<bool>.Ignored))
                 .Returns(true);
         }
-            
 
-    #endregion
-}
+        private void GivenBlockIsNextTip(Block block, uint prevHeight, long prevTimestamp, uint prevDifficulty)
+        {
+            var prevHeader = new BlockHeader()
+            {
+                BlockId = block.Header.PreviousBlock,
+                Height = prevHeight,
+                Timestamp = prevTimestamp,
+                Difficulty = prevDifficulty
+            };
+
+            A.CallTo(() => _blockRepository.HavePrimaryBlock(block.Header.BlockId))
+                .Returns(false);
+
+            A.CallTo(() => _blockRepository.GetBlockHeader(block.Header.PreviousBlock))
+                .Returns(prevHeader);
+
+            A.CallTo(() => _blockRepository.GetBestBlockHeader())
+                .Returns(prevHeader);
+
+            A.CallTo(() => _blockRepository.IsEmpty())
+                .Returns(false);
+
+            A.CallTo(() => _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp))
+                .Returns(prevDifficulty);
+
+        }
+
+        private void GivenBlockIsFork(Block block, uint prevHeight, long prevTimestamp, uint prevDifficulty)
+        {
+            var prevHeader = new BlockHeader()
+            {
+                BlockId = block.Header.PreviousBlock,
+                Height = prevHeight,
+                Timestamp = prevTimestamp,
+                Difficulty = prevDifficulty
+            };
+
+            var mainTip = new BlockHeader()
+            {
+                BlockId = new byte[] { 0xFF, 0x2, 0x3 },
+                Height = block.Header.Height - 1,
+                Timestamp = block.Header.Timestamp - 1,
+                Difficulty = prevDifficulty
+            };
+
+            var prevMain = new BlockHeader()
+            {
+                BlockId = new byte[] { 0xFF, 0x2, 0x3, 0x4 },
+                Height = block.Header.Height - 2,
+                Timestamp = block.Header.Timestamp - 2,
+                Difficulty = prevDifficulty
+            };
+
+            A.CallTo(() => _blockRepository.HavePrimaryBlock(block.Header.BlockId))
+                .Returns(false);
+
+            A.CallTo(() => _blockRepository.GetBlockHeader(block.Header.PreviousBlock))
+                .Returns(prevHeader);
+
+            A.CallTo(() => _blockRepository.GetBestBlockHeader())
+                .Returns(mainTip);
+
+            A.CallTo(() => _blockRepository.GetPrimaryHeader(block.Header.Height))
+                .Returns(mainTip);
+
+            A.CallTo(() => _blockRepository.GetPrimaryHeader(block.Header.Height - 1))
+                .Returns(prevMain);
+
+            A.CallTo(() => _blockRepository.IsEmpty())
+                .Returns(false);
+
+            A.CallTo(() => _difficultyCalculator.CalculateDifficulty(prevHeader.Timestamp))
+                .Returns(prevDifficulty);
+
+        }
+
+
+        #endregion
+    }
 }
