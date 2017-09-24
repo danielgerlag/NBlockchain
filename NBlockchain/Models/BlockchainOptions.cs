@@ -165,7 +165,7 @@ namespace NBlockchain.Models
 
             //AddDefault<IBlockRepository, InMemoryBlockRepository>(ServiceLifetime.Singleton);
 
-            AddDefault<IBlockchainHost, BlockchainHost>(ServiceLifetime.Singleton);
+            AddDefault<IBlockchainNode, BlockchainNode>(ServiceLifetime.Singleton);
             AddDefault<IReceiver, Receiver>(ServiceLifetime.Singleton);
             
 

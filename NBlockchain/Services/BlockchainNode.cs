@@ -11,7 +11,7 @@ using NBlockchain.Models;
 
 namespace NBlockchain.Services
 {
-    public class BlockchainHost : IBlockchainHost
+    public class BlockchainNode : IBlockchainNode
     {        
         private readonly INetworkParameters _parameters;
         private readonly IBlockRepository _blockRepository;
@@ -26,10 +26,10 @@ namespace NBlockchain.Services
         private readonly IUnconfirmedTransactionPool _unconfirmedTransactionPool;
         private readonly IDifficultyCalculator _difficultyCalculator;
 
-        private readonly Timer _pollTimer;
+        public readonly Timer PollTimer;
         
 
-        public BlockchainHost(IBlockRepository blockRepository, IBlockVerifier blockVerifier, IReceiver receiver, ILoggerFactory loggerFactory, IForkRebaser forkRebaser, INetworkParameters parameters, IUnconfirmedTransactionPool unconfirmedTransactionPool, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator, IExpectedBlockList expectedBlockList)
+        public BlockchainNode(IBlockRepository blockRepository, IBlockVerifier blockVerifier, IReceiver receiver, ILoggerFactory loggerFactory, IForkRebaser forkRebaser, INetworkParameters parameters, IUnconfirmedTransactionPool unconfirmedTransactionPool, IPeerNetwork peerNetwork, IDifficultyCalculator difficultyCalculator)
         {
             _blockRepository = blockRepository;
             _blockVerifier = blockVerifier;
@@ -40,15 +40,15 @@ namespace NBlockchain.Services
             _peerNetwork = peerNetwork;
             _difficultyCalculator = difficultyCalculator;
             //_expectedBlockList = expectedBlockList;
-            _logger = loggerFactory.CreateLogger<BlockchainHost>();
+            _logger = loggerFactory.CreateLogger<BlockchainNode>();
 
-            _receiver.OnReceiveBlock += OnRecieveBlock;
-            _receiver.OnRecieveTransaction += OnRecieveTransaction;
+            _receiver.OnReceiveBlock += RecieveBlock;
+            _receiver.OnRecieveTransaction += RecieveTransaction;
 
-            _pollTimer = new Timer(GetMissingBlocks, null, TimeSpan.FromSeconds(5), _parameters.BlockTime);
+            PollTimer = new Timer(GetMissingBlocks, null, TimeSpan.FromSeconds(5), _parameters.BlockTime);
         }
                 
-        private async Task<PeerDataResult> OnRecieveBlock(Block block)
+        public async Task<PeerDataResult> RecieveBlock(Block block)
         {
             var result = PeerDataResult.Ignore;
             if (!_blockEvent.WaitOne(TimeSpan.FromSeconds(30)))
@@ -215,7 +215,7 @@ namespace NBlockchain.Services
             }
         }
 
-        private async Task<PeerDataResult> OnRecieveTransaction(Transaction transaction)
+        public async Task<PeerDataResult> RecieveTransaction(Transaction transaction)
         {            
             _logger.LogDebug($"Recv txn {BitConverter.ToString(transaction.TransactionId)}");
             var txnResult = await _blockVerifier.VerifyTransaction(transaction, _unconfirmedTransactionPool.Get);
@@ -238,8 +238,8 @@ namespace NBlockchain.Services
         public async Task SendTransaction(Transaction transaction)
         {
             _logger.LogDebug("Sending txn");
-            await _receiver.RecieveTransaction(transaction);
-            _peerNetwork.BroadcastTransaction(transaction);
+            if (await _receiver.RecieveTransaction(transaction) == PeerDataResult.Relay)
+                _peerNetwork.BroadcastTransaction(transaction);
         }
         
         private async void GetMissingBlocks(object state)
