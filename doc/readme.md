@@ -1,5 +1,7 @@
 # NBlockchain
 
+**This documentation is still a work in progress!!!**
+
 NBlockchain is a .NET standard library for building blockchain applications.
 
 ## Block content
@@ -18,8 +20,7 @@ Furthermore, you may define block level rules that can inspect all the transacti
 
 You must configure the IoC container with the various pieces you wish to include.  eg.
 
-```
-IServiceCollection services = new ServiceCollection();
+```c#
 services.AddBlockchain(blockchain =>
 {
     blockchain.UseDataConnection("node.db");
