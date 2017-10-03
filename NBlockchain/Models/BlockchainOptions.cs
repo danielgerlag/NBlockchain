@@ -11,6 +11,8 @@ using NBlockchain.Services.Hashers;
 using NBlockchain.Services.Net;
 using NBlockchain.Services.PeerDiscovery;
 using NBlockchain.Rules;
+using NBlockchain.Services.NatTraversal;
+using Org.BouncyCastle.Bcpg.OpenPgp;
 
 namespace NBlockchain.Models
 {
@@ -68,9 +70,28 @@ namespace NBlockchain.Models
 
         public void UseTcpPeerNetwork(uint port)
         {
-            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>(), sp.GetService<IUnconfirmedTransactionPool>(), sp.GetService<IReceiver>()));
+            Services.AddSingleton<IPeerNetwork>(sp => new TcpPeerNetwork(port, sp.GetService<INatTraversal>(), sp.GetService<IBlockRepository>(), sp.GetServices<IPeerDiscoveryService>(), sp.GetService<ILoggerFactory>(), sp.GetService<IOwnAddressResolver>(), sp.GetService<IUnconfirmedTransactionPool>(), sp.GetService<IReceiver>()));
         }
 
+        public void UseStaticNatTraversal(uint staticPort)
+        {
+            Services.AddSingleton<INatTraversal>(sp => new StaticPortForwarding((int)staticPort, sp.GetService<IProvideUpnpDevice>()));
+        }
+
+        public void UseNoNatTraversal()
+        {
+            Services.AddSingleton<INatTraversal, NoTraversal>();
+        }
+
+        public void UseUpnpAutoNatTraversal(string mappingIdentifier)
+        {
+            Services.AddSingleton<INatTraversal>(sp => new UpnpAutodetectPortForwarding(mappingIdentifier, sp.GetService<ILoggerFactory>(), sp.GetService<IProvideUpnpDevice>()));
+        }
+
+        public void UsePnpStaticNatTraversal(uint staticPort, string mappingIdentifier)
+        {
+            Services.AddSingleton<INatTraversal>(sp => new UpnpStaticPortForwarding(mappingIdentifier, (int)staticPort, sp.GetService<ILoggerFactory>(), sp.GetService<IProvideUpnpDevice>()));
+        }
         public void UseDataConnection(string connectionString)
         {
             Services.AddSingleton<IDataConnection>(sp => new DataConnection(connectionString));
@@ -157,6 +178,7 @@ namespace NBlockchain.Models
             AddDefault<IHashTester, HashTester>(ServiceLifetime.Transient);
             AddDefault<IBlockVerifier, BlockVerifier>(ServiceLifetime.Transient);
             AddDefault<IPeerNetwork, InProcessPeerNetwork>(ServiceLifetime.Singleton);
+            AddDefault<INatTraversal, UpnpAutodetectPortForwarding>(ServiceLifetime.Singleton);
 
             AddDefault<IDataConnection, DataConnection>(ServiceLifetime.Singleton);
             AddDefault<IBlockRepository, DefaultBlockRepository>(ServiceLifetime.Singleton);
@@ -167,7 +189,7 @@ namespace NBlockchain.Models
 
             AddDefault<IBlockchainNode, BlockchainNode>(ServiceLifetime.Singleton);
             AddDefault<IReceiver, Receiver>(ServiceLifetime.Singleton);
-            
+            AddDefault<IProvideUpnpDevice, OpenNatUpnpProvider>(ServiceLifetime.Singleton);
 
             AddDefault<IDateTimeProvider, DateTimeProvider>(ServiceLifetime.Singleton);
             AddDefault<IDifficultyCalculator, DifficultyCalculator>(ServiceLifetime.Singleton);
