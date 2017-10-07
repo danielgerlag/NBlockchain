@@ -140,7 +140,8 @@ namespace NBlockchain.Services.Net
             _resetEvent.WaitOne();
             try
             {
-                _client?.Client?.Shutdown(SocketShutdown.Both);
+                //_client?.Client?.Shutdown(SocketShutdown.Both);
+                _client.Close();
             }
             catch (Exception ex)
             {
