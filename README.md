@@ -4,7 +4,7 @@ NBlockchain is a .NET standard library for building blockchain applications.
 
 **This project is currently in alpha status and any contributions are welcome.**
 
-The idea is that the developer would only need to focus on the data on rules for a blockchain and not worry about having to build all the infrastructure to facilitate a blockchain.
+The idea is that the developer would only need to focus on the data and rules for a blockchain and not worry about having to build all the infrastructure to facilitate a blockchain.
 
 The developer would need to
  * Define the schema of data / transactions they would like to store on the blockchain
