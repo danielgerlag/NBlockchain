@@ -22,6 +22,7 @@ namespace NBlockchain.Services.Net
         //TODO: break this class up into smaller pieces
         private const int TargetOutgoingCount = 8;
         private readonly uint _port;
+        private readonly INatTraversal _natTraversal;
         private string _serviceId = "BC";
         private int _version = 1;
 
@@ -45,16 +46,17 @@ namespace NBlockchain.Services.Net
         private Timer _sharePeersTimer;
         private Timer _discoveryTimer;
 
-        private string _internalConnsctionString;
-        private string _externalConnsctionString;
+        private string _internalConnectionString;
+        private string _externalConnectionString;
 
         private object _duplicateLock = new object();
 
         public Guid NodeId { get; private set; }
 
-        public TcpPeerNetwork(uint port, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IUnconfirmedTransactionPool unconfirmedTransactionPool, IReceiver reciever)
+        public TcpPeerNetwork(uint port, INatTraversal natTraversal, IBlockRepository blockRepository, IEnumerable<IPeerDiscoveryService> discoveryServices, ILoggerFactory loggerFactory, IOwnAddressResolver ownAddressResolver, IUnconfirmedTransactionPool unconfirmedTransactionPool, IReceiver reciever)
         {
             _port = port;
+            _natTraversal = natTraversal;
             _reciever = reciever;
             _logger = loggerFactory.CreateLogger<TcpPeerNetwork>();
             _blockRepository = blockRepository;
@@ -584,11 +586,11 @@ namespace NBlockchain.Services.Net
                 {
                     try
                     {
-                        if (_internalConnsctionString != null)
-                            ds.AdvertiseLocal(_internalConnsctionString);
+                        if (_internalConnectionString != null)
+                            ds.AdvertiseLocal(_internalConnectionString);
 
-                        if (_externalConnsctionString != null)
-                            ds.AdvertiseGlobal(_externalConnsctionString);
+                        if (_externalConnectionString != null)
+                            ds.AdvertiseGlobal(_externalConnectionString);
                     }
                     catch (Exception ex)
                     {
@@ -601,9 +603,11 @@ namespace NBlockchain.Services.Net
         {
             var ownAddress = _ownAddressResolver.ResolvePreferredLocalAddress();
             if (ownAddress != null)
-                _internalConnsctionString = $"tcp://{ownAddress}:{_port}";
+                _internalConnectionString = $"tcp://{ownAddress}:{_port}";
 
-            //TODO: external addresses
+            var externalConnectionString = _natTraversal.ConfigureNatTraversal(ownAddress, (int)_port);
+            if (externalConnectionString != null)
+                _externalConnectionString = $"tcp://{externalConnectionString}";
         }
 
         private static byte[] SerializeObject(object data)

@@ -100,6 +100,7 @@ namespace DigitalCurrency
             services.AddBlockchain(x =>
             {
                 x.UseTcpPeerNetwork(port);
+                x.UseUpnpAutoNatTraversal("My Currency");
                 x.UseMongoDB(@"mongodb://localhost:27017", db)
                     .UseInstructionRepository<ICustomInstructionRepository, CustomMongoInstructionRepository>();
                 //x.AddPeerDiscovery(sp => new StaticPeerDiscovery("tcp://localhost:503"));
