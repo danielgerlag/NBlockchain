@@ -1,7 +1,7 @@
 # Digital currency sample for NBlockchain
 
 This example demonstrates how to implement a very basic digital currency with NBlockchain.
-(This does not follow the flexible input/output locking script scheme that Bitcoin uses but it just meant to illustrate an application of NBlockchin)
+(This does not follow the flexible input/output locking script scheme that Bitcoin uses but it just meant to illustrate an application of NBlockchain)
 
 ## Define our instruction types
 
