@@ -168,6 +168,7 @@ services.AddBlockchain(x =>
     x.UseInstructionRepository<ICustomInstructionRepository, CustomInstructionRepository>();
     x.UseTcpPeerNetwork(port);
     x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
+	x.UseNoNatTraversal();
     x.AddInstructionType<TransferInstruction>();
     x.AddInstructionType<CoinbaseInstruction>();
     x.AddTransactionRule<BalanceRule>();
@@ -192,6 +193,7 @@ services.AddBlockchain(x =>
     x.UseMongoDB(@"mongodb://localhost:27017", db)
         .UseInstructionRepository<ICustomInstructionRepository, CustomMongoInstructionRepository>();
     x.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
+	x.UseNoNatTraversal();
     x.AddInstructionType<TransferInstruction>();
     x.AddInstructionType<CoinbaseInstruction>();
     x.AddTransactionRule<BalanceRule>();

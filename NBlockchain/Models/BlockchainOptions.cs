@@ -183,6 +183,7 @@ namespace NBlockchain.Models
             AddDefault<IDataConnection, DataConnection>(ServiceLifetime.Singleton);
             AddDefault<IBlockRepository, DefaultBlockRepository>(ServiceLifetime.Singleton);
             AddDefault<IInstructionRepository, InstructionRepository>(ServiceLifetime.Singleton);
+            AddDefault<INatTraversal, NoTraversal>(ServiceLifetime.Singleton);
             //AddDefault<IPeerDiscoveryService, DefaultPeerRepository>(ServiceLifetime.Singleton);
 
             //AddDefault<IBlockRepository, InMemoryBlockRepository>(ServiceLifetime.Singleton);
