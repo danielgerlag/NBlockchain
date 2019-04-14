@@ -27,6 +27,7 @@ services.AddBlockchain(blockchain =>
     blockchain.UseInstructionRepository<ICustomInstructionRepository, CustomInstructionRepository>();
     blockchain.UseTcpPeerNetwork(port);
     blockchain.UseMulticastDiscovery("My Currency", "224.100.0.1", 8088);
+    blockchain.UseNoNatTraversal();
     blockchain.AddInstructionType<TransferInstruction>();
     blockchain.AddInstructionType<CoinbaseInstruction>();
     blockchain.AddTransactionRule<BalanceRule>();
