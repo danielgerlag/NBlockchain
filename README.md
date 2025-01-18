@@ -1,5 +1,7 @@
 # NBlockchain
 
+[<img src="https://api.gitsponsors.com/api/badge/img?id=99492841" height="20">](https://api.gitsponsors.com/api/badge/link?p=z/lqjMTxNXS+Grw5EvE2h1VgbJs53TSeZowLI8QCrFtKRepan+g1DGIo9DBtV0XQDpvYV9xJb96BKxxNCOYsWQ==)
+
 NBlockchain is a .NET standard library for building blockchain applications.
 
 **This project is currently in alpha status and any contributions are welcome.**
